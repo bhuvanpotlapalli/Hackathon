@@ -54,10 +54,11 @@ function bot(text){return new Promise(function(res){var t=el('div','msg bot typi
 function me(text){var m=el('div','msg me',text);msgs.appendChild(m);scroll()}
 function clear(){dock.innerHTML=''}
 function chips(list,onPick,opts){clear();opts=opts||{};var row=el('div','chips');list.forEach(function(item,i){var label=Array.isArray(item)?item[0]:item;var b=el('button','chip-btn',label);b.type='button';b.style.animationDelay=(i*40)+'ms';
-  b.onclick=function(){if(opts.multi){b.classList.toggle('on');return}clear();me(label);onPick(item)};row.appendChild(b)});dock.appendChild(row);
+  b.onclick=function(){if(opts.multi){b.classList.toggle('on');b.setAttribute('aria-pressed',b.classList.contains('on'));count();return}clear();me(label);onPick(item)};if(opts.multi)b.setAttribute('aria-pressed','false');row.appendChild(b)});dock.appendChild(row);
   if(opts.multi){var other=el('input');other.placeholder=opts.placeholder||'Add your own (comma-separated)';other.className='chat-in';dock.appendChild(other);
-    var go=el('button','btn',opts.done||'Done');go.type='button';go.onclick=function(){var picked=[].slice.call(row.querySelectorAll('.on')).map(function(b){return b.textContent});
-      other.value.split(',').map(function(s){return s.trim()}).filter(Boolean).forEach(function(s){picked.push(s)});if(!picked.length&&!opts.allowEmpty){other.focus();return}clear();me(picked.length?picked.join(', '):'None yet');onPick(picked)};dock.appendChild(go)}}
+    var go=el('button','btn',opts.done||'Done');go.type='button';var hint=el('div','chat-hint');function count(){var n=row.querySelectorAll('.on').length;go.textContent=n?('Done · '+n+' picked'):(opts.done||'Done');if(n)hint.textContent=''}
+    go.onclick=function(){var picked=[].slice.call(row.querySelectorAll('.on')).map(function(b){return b.textContent});
+      other.value.split(',').map(function(s){return s.trim()}).filter(Boolean).forEach(function(s){picked.push(s)});if(!picked.length&&!opts.allowEmpty){hint.textContent='Tap at least one class, or type your own.';other.focus();return}clear();me(picked.length?picked.join(', '):'None yet');onPick(picked)};other.addEventListener('input',function(){if(other.value.trim())hint.textContent=''});dock.appendChild(go);dock.appendChild(hint)}}
 function ask(placeholder,onAnswer,suggest){clear();var f=el('form','askrow');var i=el('input');i.className='chat-in';i.placeholder=placeholder;i.maxLength=200;i.required=true;i.setAttribute('aria-label',placeholder);
   var b=el('button','btn','Send');f.appendChild(i);f.appendChild(b);f.onsubmit=function(e){e.preventDefault();var v=i.value.trim();if(!v)return;clear();me(v);onAnswer(v)};
   if(suggest&&suggest.length){var row=el('div','chips');suggest.forEach(function(s){var c=el('button','chip-btn ghosty',s);c.type='button';c.onclick=function(){i.value=s;i.focus()};row.appendChild(c)});dock.appendChild(row)}

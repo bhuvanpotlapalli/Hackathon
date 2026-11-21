@@ -181,7 +181,9 @@ a.card:hover{transform:translateY(-2px);border-color:#d6c6b5;box-shadow:0 10px 2
 .chip-btn{border:1.5px solid var(--ember);background:#fff;color:var(--ink);border-radius:999px;padding:.55rem .95rem;font:600 .95rem system-ui;cursor:pointer;min-height:42px;animation:pop .3s var(--ease-enter) both;transition:transform .15s,background-color .15s}
 .chip-btn:hover{transform:translateY(-1px);background:#fff3ea}
 .chip-btn:active{transform:translateY(1px) scale(.985)}
-.chip-btn.on,.chip-btn.on:hover{background:var(--ember);color:#fff;opacity:1}
+.chip-btn.on,.chip-btn.on:hover,html[data-theme=dark] .chip-btn.on,html[data-theme=dark] .chip-btn.on:hover{background:var(--ember);border-color:var(--ember);color:#fff;opacity:1}
+.chip-btn.on::before{content:'✓ ';font-weight:700}
+.chat-hint{color:var(--ember);font:600 .9rem system-ui;margin-top:.4rem;min-height:1px}
 .chip-btn.ghosty{border-color:var(--line);font-weight:500;font-size:.88rem}
 .askrow{display:flex;gap:.5rem}.askrow .chat-in{flex:1}
 .chat-in{min-height:44px}
