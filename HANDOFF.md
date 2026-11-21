@@ -1,4 +1,4 @@
-# Ember: handoff (where to pick up)
+# TechWomenAZ mentorship (code name Ember): handoff
 
 > For any Claude session or teammate picking this up. Last updated: Sat Nov 21, 2026, ~10:45 AM MST.
 > **Deadline: submissions close 1:30 PM MST. JS wants everything done by 12:30.**
@@ -48,6 +48,13 @@ Local test without a login: `npx wrangler dev -c wrangler.mock.jsonc` then open 
   - Fallbacks tested locally in mock mode. **Real AI output has NOT been tested yet** (needs Bhuvan's Cloudflare login). After deploying, check `/matches/19`: if the "✨" lines read naturally, AI works; the JSON from `/api/why?mentee=19&mentor=1` shows `"ai": true` when the model answered.
 - ✅ **README** rewritten (live link fixed to `fortfein`). Still to fill in: video link.
 - ⏳ **Next**: deploy and check the live site in a private window, merge `ember` into `main`, record the video (script in the team playbook §12, mention coursework matching + the opportunities board), submit by 1:25.
+
+## Latest (~11:05 AM)
+- Site rebranded to **TechWomenAZ** (JS's call). The AI chat assistant is named **ember**.
+- `/start`: chat signup with ember (quick-reply chips, AI reactions with fallbacks, creates the profile, redirects to matches). Code in `src/chat.ts`. The classic form is still at `/join`.
+- Matches page shows "Courses to take next" from `COURSE_LIBRARY` in `src/logic.ts`, with which mentors took each one.
+- 7 extra mentors seeded (ids after mentees, so `/matches/19` is still Elena). Every demo mentee except Ben now has a 70%+ best match. **After deploying a seed change, click Reset demo on /campfire.**
+- Rise Report prompt forbids invented numbers/goals and gendered wording.
 
 ## Design rules (from taste-skill)
 - No emoji in headings or buttons, no gradient text, no glow or shine sweeps, no scroll-in card reveals, no twinkling. Buttons step 1px up on hover and press on click; linked cards lift 2px. One hero entrance (split-text headline). The hero shows the real Campfire, not decoration.

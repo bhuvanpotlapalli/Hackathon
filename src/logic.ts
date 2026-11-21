@@ -263,6 +263,18 @@ export function oppScore(mentee: User, opp: Opportunity): OppMatch {
   return { opp, score: clamp(score, 0, 100), reasons, courses: have, missing };
 }
 
+/** Curated course list per path: what TechWomenAZ mentors recommend, in a sensible order. */
+export const COURSE_LIBRARY: Record<string, string[]> = {
+  Software: ["Intro to Java", "JavaScript", "HTML and CSS", "Data Structures and Algorithms", "Databases", "Discrete Math", "Calculus I", "React"],
+  "UX/Design": ["Intro to UX Design", "User Research Methods", "Figma Prototyping", "Human-Computer Interaction", "Typography", "Design Systems"],
+  "Data/AI": ["Statistics", "SQL Databases", "Excel", "Python for Data Science", "Machine Learning", "Linear Algebra"],
+  Product: ["Product Management", "Agile Project Management", "Business Analytics", "User Research Methods", "Marketing Strategy"],
+  Cybersecurity: ["Computer Networking", "Network Security", "Linux Administration", "Ethical Hacking", "Incident Response"],
+  "IT/Support": ["Computer Hardware", "Help Desk Fundamentals", "Windows Administration", "Computer Networking"],
+  "Tech Sales & Marketing": ["Sales Fundamentals", "Digital Marketing", "Marketing Strategy", "Business Communication"],
+  "Not sure yet": ["Intro to Computer Science", "Statistics", "Intro to UX Design", "Computer Networking", "JavaScript"],
+};
+
 /** Starter milestones per career path (AI replaces these when available). */
 export function starterMilestones(career: string, goal: string): string[] {
   const byCareer: Record<string, string[]> = {

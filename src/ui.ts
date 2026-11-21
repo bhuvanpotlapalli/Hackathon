@@ -161,24 +161,54 @@ a.card:hover{transform:translateY(-2px);border-color:#d6c6b5;box-shadow:0 10px 2
 .stat b{color:var(--ink)}
 .barfill{transform-origin:left;animation:grow 1s var(--ease-enter) both}
 @keyframes grow{from{transform:scaleX(0)}to{transform:scaleX(1)}}
+
+/* ---------- Spark chat ---------- */
+.chatwrap{max-width:680px;margin:0 auto}
+.chathead{display:flex;align-items:center;gap:.8rem;background:var(--plum);color:#fff;border-radius:18px 18px 0 0;padding:.9rem 1.1rem;position:relative;overflow:hidden}
+.chathead .muted{color:rgba(255,255,255,.7)}
+.avatar{width:44px;height:44px;border-radius:50%;display:grid;place-items:center;background:radial-gradient(circle at 50% 65%,var(--gold),var(--ember) 70%);font-size:1.4rem;animation:breathe 2.4s ease-in-out infinite}
+.prog{position:absolute;left:0;right:0;bottom:0;height:4px;background:rgba(255,255,255,.12)}
+.prog b{display:block;height:100%;width:0;background:linear-gradient(90deg,var(--ember),var(--gold));transition:width .5s var(--ease-enter)}
+.msgs{background:#fffaf4;border:1px solid var(--line);border-top:0;height:min(52vh,460px);overflow-y:auto;padding:1rem;display:flex;flex-direction:column;gap:.55rem;scroll-behavior:smooth}
+.msg{max-width:84%;padding:.65rem .9rem;border-radius:16px;line-height:1.4;animation:pop .28s var(--ease-enter) both}
+.msg.bot{align-self:flex-start;background:#fff;border:1px solid var(--line);border-bottom-left-radius:4px}
+.msg.me{align-self:flex-end;background:var(--ember);color:#fff;border-bottom-right-radius:4px}
+.msg.typing{display:flex;gap:4px;padding:.8rem .9rem}
+.msg.typing span{width:7px;height:7px;border-radius:50%;background:#c9b8a8;animation:dot 1s infinite}
+.msg.typing span:nth-child(2){animation-delay:.15s}.msg.typing span:nth-child(3){animation-delay:.3s}
+.dock{background:#fff;border:1px solid var(--line);border-top:0;border-radius:0 0 18px 18px;padding:.9rem;min-height:84px;display:flex;flex-direction:column;gap:.6rem}
+.chips{display:flex;flex-wrap:wrap;gap:.5rem}
+.chip-btn{border:1.5px solid var(--ember);background:#fff;color:var(--ink);border-radius:999px;padding:.55rem .95rem;font:600 .95rem system-ui;cursor:pointer;min-height:42px;animation:pop .3s var(--ease-enter) both;transition:transform .15s,background-color .15s}
+.chip-btn:hover{transform:translateY(-1px);background:#fff3ea}
+.chip-btn:active{transform:translateY(1px) scale(.985)}
+.chip-btn.on,.chip-btn.on:hover{background:var(--ember);color:#fff;opacity:1}
+.chip-btn.ghosty{border-color:var(--line);font-weight:500;font-size:.88rem}
+.askrow{display:flex;gap:.5rem}.askrow .chat-in{flex:1}
+.chat-in{min-height:44px}
+@keyframes pop{from{opacity:0;transform:translateY(6px) scale(.98)}to{opacity:1;transform:none}}
+@keyframes dot{0%,100%{opacity:.3;transform:translateY(0)}50%{opacity:1;transform:translateY(-3px)}}
+@keyframes breathe{0%,100%{transform:scale(1)}50%{transform:scale(1.06)}}
+.course-row{display:flex;justify-content:space-between;align-items:center;gap:.6rem;padding:.5rem 0;border-bottom:1px dashed var(--line)}
+.course-row:last-child{border-bottom:0}
+@media (max-width:480px){nav{gap:.6rem;padding:.6rem .75rem}nav a{font-size:.88rem}.brand{font-size:1.1rem}}
 @media (prefers-reduced-motion:reduce){*,*::before,*::after{animation:none!important;transition:none!important}[data-split] .w>span,.hero .inner>p,.hero .inner>.row,.hero .shot{transform:none!important;opacity:1!important}}
 `;
 
-export function layout(title: string, body: string, active = "", description = "Ember: mentorships that don't fizzle out. Built for TechWomenAZ."): string {
+export function layout(title: string, body: string, active = "", description = "TechWomenAZ mentorship: matched by coursework, kept going with a flame for every pair."): string {
   const link = (href: string, label: string) =>
     `<a href="${href}"${active === href ? ' aria-current="page"' : ""}>${label}</a>`;
   return `<!doctype html><html lang="en"><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>${esc(title)} · Ember</title>
+<title>${esc(title)} · TechWomenAZ</title>
 <meta name="description" content="${esc(description)}">
 <link rel="icon" href="${FAVICON}">
 <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;700&display=swap" rel="stylesheet">
 <style>${CSS}</style></head><body>
-<nav aria-label="Main"><a class="brand" href="/"><span class="ico">🔥</span> <span class="word">ember</span></a>${link("/", "Home")}${link("/join", "Join")}${link("/opportunities", "Opportunities")}${link("/campfire", "Campfire")}</nav>
+<nav aria-label="Main"><a class="brand" href="/"><span class="ico">🔥</span> <span class="word">TechWomen<span class="accent">AZ</span></span></a>${link("/", "Home")}${link("/start", "Get matched")}${link("/opportunities", "Opportunities")}${link("/campfire", "Campfire")}</nav>
 <main>${body}</main>
 <div class="toast" id="toast" role="status" aria-live="polite"></div>
-<footer>Ember · built for TechWomenAZ at FireBytes 2026 · people and postings shown are demo data</footer>
+<footer>TechWomenAZ mentorship · built by team fortfein at FireBytes 2026 · people and postings shown are demo data</footer>
 <script>
 (function(){
   // Split text: wrap each word of [data-split] so it rises once on load (text stays in the HTML)

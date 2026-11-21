@@ -8,8 +8,10 @@ import {
   CAREERS,
   FORMATS,
   OPP_KINDS,
+  COURSE_LIBRARY,
   clamp,
   flameFor,
+  sharedCourses,
   matchScore,
   oppScore,
   starterMilestones,
@@ -60,12 +62,12 @@ export async function home(env: Env): Promise<Response> {
     <path d="M0 230 L150 195 L300 222 L470 185 L620 225 L800 190 L960 222 L1200 195 L1200 300 L0 300Z" fill="#2c1638"/>
   </svg>
   <div class="inner">
-    <span class="tag">TechWomenAZ mentorship</span>
+    <span class="tag">Mentorship · Phoenix</span>
     <h1 data-split>Mentorships that <span class="accent">don't fizzle out</span></h1>
     <p>Mentees are matched with mentors who have taken the same courses. Each pair gets a flame that grows when they meet and fades when they go quiet, so TechWomenAZ can step in before a pair drifts apart.</p>
     <div class="row" style="margin-top:1.4rem">
-      <a class="btn" href="/join?role=mentee">Find a mentor</a>
-      <a class="btn light" href="/join?role=mentor">Become a mentor</a>
+      <a class="btn" href="/start">Get matched in 2 minutes</a>
+      <a class="btn light" href="/start">Become a mentor</a>
       <a class="btn ghost" style="color:#fff;border-color:rgba(255,255,255,.6)" href="/opportunities/new">Post an opportunity</a>
     </div>
   </div>
@@ -81,15 +83,22 @@ export async function home(env: Env): Promise<Response> {
   </div>
 </section>
 <div class="grid steps">
-  <div class="card"><h3><span class="num">1</span> Match</h3><p>Tell us your career path and the courses you're taking. Ember finds mentors who have been through the same coursework.</p></div>
+  <div class="card"><h3><span class="num">1</span> Match</h3><p>Tell us your career path and the courses you're taking. We find mentors who have been through the same coursework.</p></div>
   <div class="card"><h3><span class="num">2</span> Plan</h3><p>Every pair gets a goal and three milestones, so no meeting is just "catching up."</p></div>
   <div class="card"><h3><span class="num">3</span> Keep meeting</h3><p>Log a meeting in 30 seconds and watch your flame grow. TechWomenAZ relights fading pairs from the Campfire.</p></div>
-  <div class="card"><h3><span class="num">4</span> Get opportunities</h3><p>Employers post internships, jobs and mentorship programs with the coursework they want. Ember shows each student the ones they fit.</p></div>
+  <div class="card"><h3><span class="num">4</span> Get opportunities</h3><p>Employers post internships, jobs and mentorship programs with the coursework they want. We show each student the ones they fit.</p></div>
 </div>
 <div class="card" style="margin-top:1.25rem">
   <h3>Try the demo as a mentee</h3>
   <p class="muted">These are fictional demo profiles.</p>
-  <div class="row">${mentees.map((m) => `<a class="chip plum" href="/matches/${m.id}">${esc(m.name)}</a>`).join("")}</div>
+  <div class="row">${[...mentees]
+    .sort((a, b) => (a.name.startsWith("Elena") ? -1 : b.name.startsWith("Elena") ? 1 : 0))
+    .map((m) =>
+      m.name.startsWith("Elena")
+        ? `<a class="btn small" href="/matches/${m.id}">Start here: ${esc(m.name)} (new mentee)</a>`
+        : `<a class="chip plum" href="/matches/${m.id}">${esc(m.name)}</a>`,
+    )
+    .join("")}</div>
 </div>`;
   return html(layout("Home", body, "/"));
 }
@@ -98,7 +107,7 @@ export async function home(env: Env): Promise<Response> {
 export function joinForm(url: URL, error = ""): Response {
   const role = url.searchParams.get("role") === "mentor" ? "mentor" : "mentee";
   const body = `
-<div class="banner"><h1>Join Ember</h1>
+<div class="banner"><h1>Join TechWomenAZ mentoring</h1>
 <p>Two minutes. TechWomenAZ mentoring is for college students and adults. You don't need a tech degree.</p></div>
 ${error ? `<div class="notice" style="background:#fdecea;border-color:#f5c2bd;color:#7a1f16" role="alert">${esc(error)}</div>` : ""}
 <form method="post" action="/join" class="card">
@@ -198,7 +207,7 @@ export async function mentorWelcome(env: Env, id: number): Promise<Response> {
 }
 
 // ---------------------------------------------------------------- Matches
-export async function matches(env: Env, menteeId: number): Promise<Response> {
+export async function matches(env: Env, menteeId: number, url: URL): Promise<Response> {
   const mentee = await db.getUser(env.DB, menteeId);
   if (!mentee || mentee.role !== "mentee") return notFound("Mentee");
   const [mentors, already, myPairs, opps] = await Promise.all([
@@ -212,6 +221,12 @@ export async function matches(env: Env, menteeId: number): Promise<Response> {
     .map((m) => matchScore(mentee, m, m.active_pairs))
     .sort((a, b) => b.score - a.score)
     .slice(0, 3);
+  // Curated courses for the mentee's path they haven't taken yet, and which mentors took each one.
+  const taken = sharedCourses(COURSE_LIBRARY[mentee.career]?.join(", ") ?? "", mentee.courses);
+  const nextCourses = (COURSE_LIBRARY[mentee.career] ?? COURSE_LIBRARY["Not sure yet"])
+    .filter((c) => !taken.includes(c))
+    .slice(0, 5)
+    .map((course) => ({ course, mentors: mentors.filter((m) => sharedCourses(course, m.courses).length).map((m) => m.name.split(" ")[0]) }));
   const oppFits = opps
     .map((o) => oppScore(mentee, o))
     .filter((o) => o.score >= 40)
@@ -219,12 +234,13 @@ export async function matches(env: Env, menteeId: number): Promise<Response> {
     .slice(0, 3);
 
   const body = `
-<div class="banner"><h1>Hi ${esc(mentee.name.split(" ")[0])}, here are your top matches</h1>
+${url.searchParams.get("new") ? `<div class="notice">You're in, ${esc(mentee.name.split(" ")[0])}. ember found these mentors from your courses and goal.</div>` : ""}
+<div class="banner"><h1>${myPairs.length ? `Add another mentor, ${esc(mentee.name.split(" ")[0])}` : `Hi ${esc(mentee.name.split(" ")[0])}, here are your top matches`}</h1>
 <p>Ranked by career path, shared coursework, goals, schedule and format. You choose.</p></div>
 <p>Your courses: ${chips(mentee.courses.split(",").map((c) => c.trim()).filter(Boolean), "sage")}</p>
 ${
   myPairs.length
-    ? `<div class="notice">Your mentors: ${myPairs.map((p) => `<a href="/pair/${p.id}">${esc(p.mentor_name)}</a>`).join(" · ")}</div>`
+    ? `<div class="notice">Your current mentor${myPairs.length > 1 ? "s" : ""}: ${myPairs.map((p) => `<a href="/pair/${p.id}">${esc(p.mentor_name)} (open your pair page)</a>`).join(" · ")}</div>`
     : ""
 }
 <div class="grid">${
@@ -246,6 +262,9 @@ ${
       : `<div class="card"><p>No mentors have open spots right now. TechWomenAZ will match you by hand.</p></div>`
   }</div>
 
+<h2 style="margin-top:2rem">Courses to take next for ${esc(mentee.career)}</h2>
+<div class="card">${nextCourses.length ? nextCourses.map((c) => `<div class="course-row"><span><b>${esc(c.course)}</b></span><span class="muted" style="font-size:.88rem;text-align:right">${c.mentors.length ? `${esc(c.mentors.slice(0, 2).join(", "))} took this` : "Recommended by TechWomenAZ mentors"}</span></div>`).join("") : `<p class="muted">You've covered the core courses for this path.</p>`}</div>
+
 <h2 style="margin-top:2rem">Opportunities that fit your coursework</h2>
 <div class="grid">${
     oppFits.length
@@ -253,7 +272,7 @@ ${
       : `<div class="card"><p class="muted">No postings fit yet. <a href="/opportunities">See all opportunities</a>.</p></div>`
   }</div>
 <script>
-document.querySelectorAll('.why').forEach(function(el){el.textContent='Writing why you\'ll click…';
+document.querySelectorAll('.why').forEach(function(el){el.textContent='Writing why you’ll click…';
 fetch('/api/why?mentee=${mentee.id}&mentor='+el.dataset.mentor).then(function(r){return r.json()}).then(function(d){el.textContent=d.text}).catch(function(){el.textContent=''});});
 </script>`;
   return html(layout("Your matches", body));
@@ -475,9 +494,9 @@ export async function opportunities(env: Env, url: URL): Promise<Response> {
         .map((o) => oppCard(o.opp, o.score, o.reasons, o.missing))
     : opps.map((o) => oppCard(o));
   const body = `
-${url.searchParams.get("posted") ? `<div class="notice">Posted. Ember is matching it to students by coursework.</div>` : ""}
+${url.searchParams.get("posted") ? `<div class="notice">Posted. We're matching it to students by coursework.</div>` : ""}
 <div class="banner"><div class="row" style="justify-content:space-between;position:relative;z-index:1"><h1>Opportunities</h1><a class="btn" href="/opportunities/new">Post an opportunity</a></div>
-<p>Internships, jobs and mentorship programs from TechWomenAZ partners. Each posting lists the coursework it wants, and Ember matches it to students who have taken those courses.</p></div>
+<p>Internships, jobs and mentorship programs from TechWomenAZ partners. Each posting lists the coursework it wants, and we match it to students who have taken those courses.</p></div>
 <form method="get" class="row card" style="margin-bottom:1rem"><label for="as" style="margin:0">See fit for</label>
 <select id="as" name="as" style="max-width:260px" onchange="this.form.submit()"><option value="">Everyone</option>${mentees
     .map((m) => `<option value="${m.id}"${m.id === asId ? " selected" : ""}>${esc(m.name)}</option>`)
@@ -489,7 +508,7 @@ ${url.searchParams.get("posted") ? `<div class="notice">Posted. Ember is matchin
 export function oppForm(): Response {
   const body = `
 <h1>Post an opportunity</h1>
-<p class="muted">Employers, partner orgs and mentors can post here. List the coursework you're looking for and Ember shows you the students who fit.</p>
+<p class="muted">Employers, partner orgs and mentors can post here. List the coursework you're looking for and we show you the students who fit.</p>
 <form method="post" action="/opportunities" class="card">
   <div class="two">
     <div><label for="kind">Type</label><select id="kind" name="kind">${options(OPP_KINDS)}</select></div>

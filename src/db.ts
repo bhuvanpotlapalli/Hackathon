@@ -103,6 +103,17 @@ const MENTEES: SeedUser[] = [
   { name: "Ben Carter", role: "mentee", career: "Not sure yet", no_degree: 1, headline: "Barista exploring tech", school: "Phoenix College", courses: "Intro to Computer Science, Statistics", goal: "Figure out which tech career fits me", availability: "Flexible", format: "Online", area: "Online only", confidence: 2, capacity: 0 },
 ];
 
+// Second mentors per path, appended after the mentees so existing demo links (/matches/19) keep their ids.
+const EXTRA_MENTORS: SeedUser[] = [
+  { name: "Hannah Brooks", role: "mentor", career: "UX/Design", no_degree: 0, headline: "Product Designer, Tempe ed-tech", school: "ASU, B.S. Graphic Information Technology", courses: "Intro to UX Design, Figma Prototyping, Typography, Design Systems, User Research Methods", goal: "UX portfolio, design internships, Figma, career change into UX", availability: "Weekday evenings", format: "Both", area: "Scottsdale", confidence: 9, capacity: 3 },
+  { name: "Daniel Okoye", role: "mentor", career: "Data/AI", no_degree: 1, headline: "Analytics Engineer, Phoenix logistics (ex-pharmacy tech)", school: "Google Data Analytics Certificate", courses: "SQL Databases, Statistics, Excel, Python for Data Science, Machine Learning, Linear Algebra", goal: "data analyst roles, SQL, dashboards, machine learning internship, career change", availability: "Flexible", format: "Online", area: "Phoenix", confidence: 9, capacity: 3 },
+  { name: "Maria Santos", role: "mentor", career: "Software", no_degree: 0, headline: "Software Engineer, Phoenix payments company", school: "GCU, B.S. Software Engineering", courses: "Intro to Java, Calculus I, Data Structures and Algorithms, Discrete Math, Databases, JavaScript, HTML and CSS", goal: "first project, GitHub, coding interviews, summer internship, web portfolio", availability: "Flexible", format: "Online", area: "Phoenix", confidence: 9, capacity: 3 },
+  { name: "Ray Castillo", role: "mentor", career: "Cybersecurity", no_degree: 1, headline: "Security Engineer, Chandler chipmaker", school: "Security+, CySA+", courses: "Computer Networking, Network Security, Linux Administration, Incident Response", goal: "Security+, SOC analyst job, home lab, career change into security", availability: "Flexible", format: "Both", area: "East Valley", confidence: 9, capacity: 3 },
+  { name: "Tasha Greene", role: "mentor", career: "IT/Support", no_degree: 1, headline: "Systems Administrator, Mesa hospital", school: "CompTIA A+, Network+", courses: "Computer Hardware, Help Desk Fundamentals, Windows Administration, Computer Networking", goal: "CompTIA A+, help desk job, first IT job, career change", availability: "Weekday evenings", format: "Both", area: "West Valley", confidence: 9, capacity: 3 },
+  { name: "Nora Klein", role: "mentor", career: "Product", no_degree: 0, headline: "Senior Product Manager, Scottsdale health-tech (ex-teacher)", school: "NAU, B.A. Education", courses: "Agile Project Management, Business Analytics, Product Management, User Research Methods", goal: "product management, switching from teaching into tech, roadmaps", availability: "Weekends", format: "Both", area: "East Valley", confidence: 9, capacity: 3 },
+  { name: "Luis Romero", role: "mentor", career: "Tech Sales & Marketing", no_degree: 1, headline: "Sales Engineer, Phoenix cybersecurity startup (ex-realtor)", school: "Online courses", courses: "Digital Marketing, Sales Fundamentals, Business Communication", goal: "tech sales, LinkedIn network, career change into sales", availability: "Flexible", format: "Online", area: "Online only", confidence: 9, capacity: 3 },
+];
+
 // Fictional demo postings (labelled as demo data in the README).
 const OPPS: Omit<Opportunity, "id" | "created_at">[] = [
   { kind: "Internship", title: "UX Design Intern (Summer)", org: "Saguaro Health (demo)", career: "UX/Design", courses: "Intro to UX Design, User Research Methods, Figma Prototyping", area: "Scottsdale", format: "Both", description: "Help redesign our patient app. Portfolio required.", link: "", deadline: "2027-02-15" },
@@ -110,7 +121,7 @@ const OPPS: Omit<Opportunity, "id" | "created_at">[] = [
   { kind: "Job", title: "Junior SOC Analyst", org: "Desert Shield Security (demo)", career: "Cybersecurity", courses: "Network Security, Computer Networking, Linux Administration", area: "East Valley", format: "In-person", description: "Entry-level. Security+ preferred, no degree required.", link: "", deadline: "2027-01-10" },
   { kind: "Internship", title: "Software Engineering Intern", org: "Copper State Tech (demo)", career: "Software", courses: "Data Structures and Algorithms, Databases, Intro to Java", area: "Phoenix", format: "Both", description: "12-week paid internship on our backend team.", link: "", deadline: "2027-01-31" },
   { kind: "Job", title: "IT Help Desk Technician", org: "Sun Valley Schools (demo)", career: "IT/Support", courses: "Help Desk Fundamentals, Computer Hardware, Windows Administration", area: "West Valley", format: "In-person", description: "Support 2,000 students and staff. A+ preferred.", link: "", deadline: "2026-12-20" },
-  { kind: "Mentorship program", title: "Women in Product Circle", org: "TechWomenAZ", career: "Product", courses: "Product Management, Agile Project Management", area: "Phoenix", format: "Online", description: "6-week small-group mentorship for aspiring PMs.", link: "", deadline: "2027-01-05" },
+  { kind: "Mentorship program", title: "Women in Product Circle", org: "TechWomenAZ (demo)", career: "Product", courses: "Product Management, Agile Project Management", area: "Phoenix", format: "Online", description: "6-week small-group mentorship for aspiring PMs.", link: "", deadline: "2027-01-05" },
 ];
 
 // [mentorIndex, menteeIndex, pairAgeDays, meetingDaysAgo[], milestonesDone]
@@ -128,11 +139,14 @@ const PAIRS: [number, number, number, number[], number][] = [
   [3, 9, 45, [25, 38], 0], // Olivia + Lena: Embers
 ];
 
+// Six meetings that progress toward a goal; each pair walks through them in order, so nothing repeats.
 const TAKEAWAYS = [
-  ["Reviewed portfolio layout", "Add one more case study"],
-  ["Talked through a mock interview", "Practice STAR answers"],
-  ["Set up a study plan", "Finish chapter 2"],
-  ["Shared three job postings", "Apply to two of them"],
+  ["Set the goal and mapped out the next three months", "Pick the first milestone and a date for it"],
+  ["Matched coursework to the goal and chose a starter project", "Write a one-page project outline"],
+  ["Walked through the project outline together", "Finish a first rough version"],
+  ["Reviewed the first version and found two gaps", "Fix the gaps and share it with one peer"],
+  ["Practiced a mock interview using the project", "Rewrite two answers using the STAR format"],
+  ["Polished the resume and LinkedIn headline", "Apply to three roles and log them"],
 ];
 
 function iso(daysAgo: number, now: number): string {
@@ -147,7 +161,7 @@ export function seedStatements(db: D1Database): D1PreparedStatement[] {
     `INSERT INTO users (id, name, role, career, no_degree, goal, headline, courses, school, availability, format, area, confidence, capacity, is_demo, created_at)
      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1, ?)`,
   );
-  const all = [...MENTORS, ...MENTEES];
+  const all = [...MENTORS, ...MENTEES, ...EXTRA_MENTORS];
   all.forEach((u, i) => {
     stmts.push(
       insertUser.bind(i + 1, u.name, u.role, u.career, u.no_degree, u.goal, u.headline, u.courses, u.school, u.availability, u.format, u.area, u.confidence, u.capacity, iso(70, now)),
@@ -169,7 +183,7 @@ export function seedStatements(db: D1Database): D1PreparedStatement[] {
     });
     // Oldest meeting first; confidence climbs a little each meeting.
     [...meetings].reverse().forEach((daysAgo, k) => {
-      const [takeaway, next] = TAKEAWAYS[(p + k) % TAKEAWAYS.length];
+      const [takeaway, next] = TAKEAWAYS[k % TAKEAWAYS.length];
       const conf = Math.min(10, mentee.confidence + 1 + Math.floor(k * 0.8));
       stmts.push(
         db.prepare(`INSERT INTO checkins (pair_id, met_at, rating, takeaway, next_step, confidence) VALUES (?, ?, ?, ?, ?, ?)`).bind(pairId, iso(daysAgo, now), k % 3 === 2 ? "🙂" : "🔥", takeaway, next, conf),

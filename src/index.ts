@@ -3,6 +3,7 @@
 // stores data in D1 (db.ts), and uses the flame + match formulas in logic.ts.
 
 import { ensureDb, resetDb } from "./db";
+import * as chat from "./chat";
 import * as pages from "./pages";
 import type { Env } from "./pages";
 import { esc, html, layout } from "./ui";
@@ -35,8 +36,9 @@ export default {
       if (method === "GET") {
         if (path === "/") return pages.home(env);
         if (path === "/join") return pages.joinForm(url);
+        if (path === "/start") return chat.chatPage();
         if ((r = m(/^\/mentor\/(\d+)$/))) return pages.mentorWelcome(env, +r[1]);
-        if ((r = m(/^\/matches\/(\d+)$/))) return pages.matches(env, +r[1]);
+        if ((r = m(/^\/matches\/(\d+)$/))) return pages.matches(env, +r[1], url);
         if ((r = m(/^\/pair\/(\d+)$/))) return pages.pairPage(env, +r[1], url);
         if (path === "/campfire") return pages.campfire(env, url);
         if (path === "/opportunities") return pages.opportunities(env, url);
@@ -48,6 +50,8 @@ export default {
       if (method === "POST") {
         if (path === "/join") return pages.joinSubmit(request, env);
         if (path === "/choose") return pages.choose(request, env);
+        if (path === "/api/chat/react") return chat.chatReact(request, env);
+        if (path === "/api/chat/finish") return chat.chatFinish(request, env);
         if ((r = m(/^\/pair\/(\d+)\/log$/))) return pages.logMeeting(request, env, +r[1]);
         if ((r = m(/^\/pair\/(\d+)\/milestone\/(\d+)$/))) return pages.milestone(env, +r[1], +r[2]);
         if ((r = m(/^\/nudge\/(\d+)$/))) return pages.nudge(env, +r[1]);

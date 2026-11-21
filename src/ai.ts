@@ -47,7 +47,7 @@ function profile(u: User): string {
   return `${u.name} (${u.headline}; path: ${u.career}; courses: ${u.courses}; goal: ${u.goal}${u.no_degree ? "; no tech degree" : ""})`;
 }
 
-const VOICE = "You write for Ember, a warm mentorship app for TechWomenAZ in Phoenix. Be specific, encouraging and brief. No preamble.";
+const VOICE = "You write for TechWomenAZ's mentorship program in Phoenix. Be specific, encouraging and brief. No preamble.";
 
 /** One sentence on why this mentee and mentor will click. */
 export async function whyClick(env: AiEnv, mentee: User, mentor: User, sharedCourses: string[]): Promise<{ text: string; ai: boolean }> {
@@ -125,7 +125,7 @@ Mentees' confidence about their tech careers rose from an average of ${s.before.
 With ${s.opportunities} partner internships, jobs and programs matched to members by coursework, every new sponsor dollar helps turn mentorship into real career outcomes in Phoenix.`;
   const t = await ask(
     env,
-    VOICE + " Write for sponsors and donors. Use only the numbers given. Never invent names or numbers.",
+    VOICE + " Write for sponsors and donors. Use ONLY the numbers given. Never invent names, numbers, goals, targets or comparisons. Call participants \"mentees\" and \"mentors\" (the program includes people of every gender).",
     `Program stats: ${JSON.stringify(s)} (confidence is out of 10, before = when they joined, after = latest check-in).\nWrite a sponsor-ready impact summary in 3 short paragraphs, under 150 words total.`,
     260,
   );
