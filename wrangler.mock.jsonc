@@ -1,0 +1,12 @@
+// Local-only config for teammates without a Cloudflare login:
+//   npx wrangler dev -c wrangler.mock.jsonc
+// Same app and local D1, but no AI binding (AI features fall back to templates).
+{
+	"$schema": "node_modules/wrangler/config-schema.json",
+	"name": "fortfein",
+	"main": "src/index.ts",
+	"compatibility_date": "2026-11-19",
+	"d1_databases": [
+		{ "binding": "DB", "database_name": "ember-db", "database_id": "local-dev" }
+	]
+}
