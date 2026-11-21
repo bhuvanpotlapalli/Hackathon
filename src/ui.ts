@@ -1,5 +1,6 @@
 import { LOGO_MARK, FAVICON_PNG } from "./logo";
 import { COURSE_CSS } from "./courses";
+import { PERSONAL_CSS } from "./personal";
 // Shared layout, styles, and small HTML helpers.
 
 import { STATUS_LABEL, type Flame, type Status } from "./logic";
@@ -441,7 +442,7 @@ export function layout(title: string, body: string, active = "", description = "
 <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;700&display=swap" rel="stylesheet">
 <script>try{var t=localStorage.getItem('theme');if(!t)t=matchMedia('(prefers-color-scheme: dark)').matches?'dark':'light';document.documentElement.dataset.theme=t;var g=sessionStorage.getItem('go');if(g){document.documentElement.dataset.go=g;sessionStorage.removeItem('go')}}catch(e){}</script>
-<style>${CSS}${COURSE_CSS}</style></head><body>
+<style>${CSS}${COURSE_CSS}${PERSONAL_CSS}</style></head><body>
 <nav aria-label="Main"><a class="brand" href="/"><img class="logo" src="${LOGO_MARK}" alt="" width="30" height="30"> <span class="word">TechWomen<span class="accent">AZ</span></span></a>${link("/", "Home")}${link("/start", '<span class="l">Get matched</span><span class="s">Match</span>')}${link("/opportunities", '<span class="l">Opportunities</span><span class="s">Jobs</span>')}${link("/courses", "Courses")}${link("/campfire", "Campfire")}<button class="theme-btn" type="button" aria-label="Switch light or dark mode" onclick="toggleTheme()"><svg class="sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></svg><svg class="moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z"/></svg></button></nav>
 <main>${body}</main>
 <div class="toast" id="toast" role="status" aria-live="polite"></div>

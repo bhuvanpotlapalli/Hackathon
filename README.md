@@ -16,7 +16,7 @@ TechWomenAZ helps college students and adults (18+, not K-12) build careers in t
    `heat = clamp(100 − 4 × days since last meeting + 5 × weekly streak, 0, 100)` → Blazing / Glowing / Flickering / Embers. Every pair gets 3 AI-suggested milestones, and "Write my next meeting agenda" drafts the next meeting.
 4. **The Campfire** (admin, `/campfire`). Every pair as a flame, weakest first, a "Needs attention" list with one-click relight nudges, program stats, and a before/after confidence **Rise Report** (AI writes a sponsor-ready summary from combined numbers only, and is told never to invent numbers).
 5. **Opportunities board** (`/opportunities`). Employers and partners post internships, jobs and mentorship programs with the coursework they want. Each student's fit is scored by coursework coverage, mentees see the openings they fit, and posters see their best-fit students.
-6. **Courses** (`/courses`). Mentors share classes they teach or recommend, and employers add prep courses for their postings, each with filter tags. Students filter by path, level, cost, format and tags, or type their goal to see the best-fit courses first. On every opportunity, **ember (Workers AI) reads what the posting wants and picks the courses that cover it**, with the employer's own prep courses shown first.
+6. **Courses** (`/courses`). Mentors share classes they teach or recommend, and employers add prep courses for their postings, each with filter tags. Students filter by path, level, cost, format and tags, or type their goal to see the best-fit courses first. On every opportunity, **ember (Workers AI) reads what the posting wants and picks the courses that cover it**, with the employer's own prep courses shown first. **Personalized by ember:** a mentor picks a mentee and ember (Workers AI) writes a 4-step course for that person from their classes and goal, linked to library courses, with step checkboxes that track progress (the pair page links straight to it).
 7. **A fun question.** ember also asks what you're into off the clock (gaming, hiking, music…). Shared interests add up to 10 points to a match, as a tiebreaker after coursework.
 8. **Design.** The home page is a full-screen scroll story (Start → Why → Match → Meet → Learn → Launch → Join) with drifting embers, a glowing thread that connects every section as you scroll, and a fire that grows as you scroll through Meet. Light/dark toggle, page-to-page transitions tied to each button, clickable flames that throw sparks, and a phone-friendly layout.
 
@@ -46,6 +46,7 @@ TechWomenAZ helps college students and adults (18+, not K-12) build careers in t
 | `src/index.ts` | Router |
 | `src/chat.ts` | ember chat signup |
 | `src/courses.ts` | Course library, filters, ember's course picks for opportunities |
+| `src/personal.ts` | Personalized courses built by ember for one mentee |
 | `src/pages.ts` | Pages, forms, JSON endpoints |
 | `src/db.ts` | Schema, demo seed data, queries (all parameterized) |
 | `src/logic.ts` | Flame, match and opportunity-fit formulas, curated course library |

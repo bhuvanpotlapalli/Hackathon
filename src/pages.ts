@@ -435,6 +435,7 @@ ${fromHeat !== null ? `<div class="notice">Meeting logged. Your flame grew from 
         )
         .join("")}
       <button class="btn small ghost" style="margin-top:.8rem" onclick="spark(this)">Write my next meeting agenda</button>
+      <a class="btn small ghost" style="margin-top:.8rem" href="/courses/personal?mentor=${pair.mentor_id}&mentee=${pair.mentee_id}">Build a course for ${esc(pair.mentee_name.split(" ")[0])} with ember</a>
       <div id="agenda" style="margin-top:.6rem" aria-live="polite"></div>
     </div>
     <form class="card" style="margin-top:1rem" method="post" action="/pair/${pair.id}/log">

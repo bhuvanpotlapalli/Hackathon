@@ -1,3 +1,4 @@
+import * as personal from "./personal";
 import * as courses from "./courses";
 // Ember: mentorships that don't fizzle out. Built for TechWomenAZ at FireBytes 2026.
 // One Cloudflare Worker: routes requests to server-rendered pages (pages.ts),
@@ -44,6 +45,8 @@ export default {
         if (path === "/campfire") return pages.campfire(env, url);
         if (path === "/courses") return courses.coursesPage(env, url);
         if (path === "/courses/new") return courses.courseForm(env, url);
+        if (path === "/courses/personal") return personal.personalPage(env, url);
+        if ((r = m(/^\/courses\/personal\/(\d+)$/))) return personal.personalDetail(env, +r[1], url);
         if ((r = m(/^\/api\/opp-courses\/(\d+)$/))) return courses.apiOppCourses(env, +r[1]);
         if (path === "/opportunities") return pages.opportunities(env, url);
         if (path === "/opportunities/new") return pages.oppForm();
@@ -61,6 +64,7 @@ export default {
         if ((r = m(/^\/nudge\/(\d+)$/))) return pages.nudge(env, +r[1]);
         if (path === "/opportunities") return pages.oppSubmit(request, env);
         if (path === "/courses") return courses.courseSubmit(request, env);
+        if (path === "/courses/personal") return personal.personalSubmit(request, env);
         if ((r = m(/^\/api\/agenda\/(\d+)$/))) return pages.apiAgenda(env, +r[1]);
         if (path === "/api/rise") return pages.apiRise(env);
         if (path === "/admin/reset") {

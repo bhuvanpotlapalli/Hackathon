@@ -3,6 +3,7 @@
 import { ask } from "./ai";
 import { AREAS, CAREERS, clamp, keywords, splitCourses, type Opportunity } from "./logic";
 import { chips, esc, html, layout, options } from "./ui";
+import { coursesTabs } from "./personal";
 
 interface Env {
   DB: D1Database;
@@ -59,18 +60,18 @@ const C = (
 
 // Fictional demo courses (opportunity ids 1-6 follow the seeded postings).
 const SEED: SeedCourse[] = [
-  C("User Research Methods, the practical version", "TechWomenAZ mentor session", "Dana Ruiz", "Mentor", null, "UX/Design", "Beginner", "Free", "Live class", "4 weeks", "user research, interviews, portfolio", "Plan, run and write up 3 real user interviews. Ends with a portfolio-ready case study."),
-  C("Figma Prototyping from zero", "TechWomenAZ mentor session", "Hannah Brooks", "Mentor", null, "UX/Design", "Beginner", "Free", "Self-paced", "6 hours", "figma, prototyping, ux design", "Wireframes to clickable prototype, with a redesign project you can show."),
+  C("User Research Methods, the practical version", "TechWomenAZ mentor session (demo)", "Dana Ruiz", "Mentor", null, "UX/Design", "Beginner", "Free", "Live class", "4 weeks", "user research, interviews, portfolio", "Plan, run and write up 3 real user interviews. Ends with a portfolio-ready case study."),
+  C("Figma Prototyping from zero", "TechWomenAZ mentor session (demo)", "Hannah Brooks", "Mentor", null, "UX/Design", "Beginner", "Free", "Self-paced", "6 hours", "figma, prototyping, ux design", "Wireframes to clickable prototype, with a redesign project you can show."),
   C("Human-Computer Interaction crash course", "ASU Open (demo)", "Dana Ruiz", "Mentor", null, "UX/Design", "Intermediate", "Free", "Self-paced", "3 weeks", "hci, usability testing, accessibility", "The HCI ideas interviewers ask about, with usability testing practice."),
-  C("Intro to Java with real projects", "TechWomenAZ mentor session", "Maria Santos", "Mentor", null, "Software", "Beginner", "Free", "Live class", "6 weeks", "java, programming basics, git", "Weekly evening class. You finish with two small Java apps on GitHub."),
-  C("Data Structures and Algorithms for interviews", "TechWomenAZ mentor session", "Priya Natarajan", "Mentor", null, "Software", "Intermediate", "Free", "Workshop", "5 sessions", "data structures, algorithms, interview prep", "The 20 problems that come up most, solved together, plus a mock interview."),
+  C("Intro to Java with real projects", "TechWomenAZ mentor session (demo)", "Maria Santos", "Mentor", null, "Software", "Beginner", "Free", "Live class", "6 weeks", "java, programming basics, git", "Weekly evening class. You finish with two small Java apps on GitHub."),
+  C("Data Structures and Algorithms for interviews", "TechWomenAZ mentor session (demo)", "Priya Natarajan", "Mentor", null, "Software", "Intermediate", "Free", "Workshop", "5 sessions", "data structures, algorithms, interview prep", "The 20 problems that come up most, solved together, plus a mock interview."),
   C("JavaScript and the web", "Community college (demo)", "Kevin Tran", "Mentor", null, "Software", "Beginner", "Paid", "Live class", "8 weeks", "javascript, html and css, react", "Build and deploy a portfolio site. Ex-chef turned frontend dev teaches it."),
-  C("SQL for analysts", "TechWomenAZ mentor session", "Lena Okafor", "Mentor", null, "Data/AI", "Beginner", "Free", "Self-paced", "10 hours", "sql databases, data analysis, dashboards", "Query real public data, then build one dashboard from it."),
+  C("SQL for analysts", "TechWomenAZ mentor session (demo)", "Lena Okafor", "Mentor", null, "Data/AI", "Beginner", "Free", "Self-paced", "10 hours", "sql databases, data analysis, dashboards", "Query real public data, then build one dashboard from it."),
   C("Statistics you'll actually use", "UofA Extension (demo)", "Lena Okafor", "Mentor", null, "Data/AI", "Intermediate", "Paid", "Live class", "6 weeks", "statistics, python for data science, a/b testing", "Distributions, tests and A/B experiments in Python, no heavy math."),
-  C("Network Security foundations", "TechWomenAZ mentor session", "Marcus Bell", "Mentor", null, "Cybersecurity", "Beginner", "Free", "Workshop", "3 sessions", "network security, computer networking, security+", "Ports, firewalls and packet captures in a home lab. Maps to Security+."),
-  C("Linux Administration for SOC work", "TechWomenAZ mentor session", "Ray Castillo", "Mentor", null, "Cybersecurity", "Intermediate", "Free", "Self-paced", "8 hours", "linux administration, logs, incident response", "The Linux commands and log reading a SOC analyst uses every day."),
-  C("Agile and product basics", "TechWomenAZ mentor session", "Sofia Martinez", "Mentor", null, "Product", "Beginner", "Free", "Live class", "4 weeks", "product management, agile project management, roadmaps", "Write a one-page brief and a roadmap, then present it to a real PM."),
-  C("Help Desk Fundamentals bootcamp", "TechWomenAZ mentor session", "Tasha Greene", "Mentor", null, "IT/Support", "Beginner", "Free", "Workshop", "4 sessions", "help desk fundamentals, windows administration, computer hardware", "Tickets, troubleshooting and Windows admin, with an A+ study plan."),
+  C("Network Security foundations", "TechWomenAZ mentor session (demo)", "Marcus Bell", "Mentor", null, "Cybersecurity", "Beginner", "Free", "Workshop", "3 sessions", "network security, computer networking, security+", "Ports, firewalls and packet captures in a home lab. Maps to Security+."),
+  C("Linux Administration for SOC work", "TechWomenAZ mentor session (demo)", "Ray Castillo", "Mentor", null, "Cybersecurity", "Intermediate", "Free", "Self-paced", "8 hours", "linux administration, logs, incident response", "The Linux commands and log reading a SOC analyst uses every day."),
+  C("Agile and product basics", "TechWomenAZ mentor session (demo)", "Sofia Martinez", "Mentor", null, "Product", "Beginner", "Free", "Live class", "4 weeks", "product management, agile project management, roadmaps", "Write a one-page brief and a roadmap, then present it to a real PM."),
+  C("Help Desk Fundamentals bootcamp", "TechWomenAZ mentor session (demo)", "Tasha Greene", "Mentor", null, "IT/Support", "Beginner", "Free", "Workshop", "4 sessions", "help desk fundamentals, windows administration, computer hardware", "Tickets, troubleshooting and Windows admin, with an A+ study plan."),
   // Uploaded by the employers for their postings.
   C("Saguaro Health UX intern prep", "Saguaro Health (demo)", "Saguaro Health recruiting", "Employer", 1, "UX/Design", "Beginner", "Free", "Self-paced", "3 hours", "user research, figma, healthcare ux", "How our design team works, plus the exercise we use in interviews."),
   C("Valley Water analyst starter kit", "Valley Water Co. (demo)", "Valley Water Co. data team", "Employer", 2, "Data/AI", "Beginner", "Free", "Self-paced", "5 hours", "sql databases, statistics, utilities data", "Practice queries on sample meter data, like the ones interns write."),
@@ -154,6 +155,7 @@ export async function coursesPage(env: Env, url: URL): Promise<Response> {
 ${q.get("added") ? `<div class="notice">Course added. Students can find it now.</div>` : ""}
 <div class="banner"><div class="row" style="justify-content:space-between;position:relative;z-index:1"><h1>Courses</h1><a class="btn" href="/courses/new">Share a course</a></div>
 <p>Shared by mentors and employers. Filter to what fits your goal.</p></div>
+${coursesTabs("library")}
 <form method="get" class="card filters">
   <div class="fgrid">
     ${sel("career", PATHS, career, "Path")}${sel("level", LEVELS, level, "Level")}${sel("cost", COSTS, cost, "Cost")}${sel("format", COURSE_FORMATS, format, "Format")}
