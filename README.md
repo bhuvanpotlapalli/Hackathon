@@ -2,7 +2,7 @@
 
 Built for **TechWomenAZ** at the FireBytes Hackathon 2026 · **Team fortfein:** Bhuvan Potlapalli, Shaurya, Aadi, sventy77s
 
-**Live app:** https://fortfein.firebytehack.workers.dev · **Video:** https://youtu.be/kKXrDRqgC58 · **Repo:** https://github.com/bhuvanpotlapalli/Hackathon
+**Live app:** https://fortfein.firebytehack.workers.dev · **Video:** https://youtu.be/kKXrDRqgC58
 
 ![Home page: the live Campfire of mentor pairs](docs/home.png)
 
