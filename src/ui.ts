@@ -83,92 +83,85 @@ footer{text-align:center;color:var(--muted);font-size:.85rem;padding:2rem 1rem}
 .mini{display:flex;flex-direction:column;align-items:center;text-decoration:none;color:inherit}
 .mini .flame-wrap{--max:90px}
 @media print{nav,.no-print,footer{display:none}body{background:#fff}.card{box-shadow:none}}
-/* ================= Visual layer: motion, glow, depth ================= */
-body{background:
-  radial-gradient(1200px 500px at 85% -10%,rgba(255,182,39,.18),transparent 60%),
-  radial-gradient(900px 500px at -10% 10%,rgba(255,107,53,.12),transparent 60%),
-  var(--sand);background-attachment:fixed}
-nav{position:sticky;top:0;z-index:7;background:rgba(43,26,61,.86);backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);box-shadow:0 6px 24px rgba(43,26,61,.25)}
-.brand .word{background:linear-gradient(90deg,#fff,var(--gold),var(--ember));-webkit-background-clip:text;background-clip:text;color:transparent}
-.brand .ico{display:inline-block;animation:bob 2.4s ease-in-out infinite}
-h1{letter-spacing:-.02em}
-.grad{background:linear-gradient(90deg,var(--ember),var(--gold) 50%,var(--ember));background-size:200% auto;-webkit-background-clip:text;background-clip:text;color:transparent;animation:shine 6s linear infinite}
+/* ================= Visual system (taste-skill rules: one ground, quiet hover, one entrance) ================= */
+:root{--ink:#1f1729;--line:#e7dccf;--ease-enter:cubic-bezier(.22,1,.36,1)}
+body{background:var(--sand);color:var(--ink)}
+h1,h2,h3{letter-spacing:-.025em}
+h1{font-weight:700}
+nav{position:sticky;top:0;z-index:7;background:var(--plum);box-shadow:none;border-bottom:1px solid rgba(255,255,255,.08)}
+nav a:not(.brand){opacity:.78;border-bottom:0!important;background:linear-gradient(#fff,#fff) no-repeat left calc(100% - 2px)/0 1px;transition:background-size .15s ease,opacity .15s}
+nav a:not(.brand):hover{opacity:1;background-size:100% 1px}
+nav a[aria-current]{opacity:1;background:linear-gradient(var(--gold),var(--gold)) no-repeat left bottom/100% 2px}
+.brand{letter-spacing:-.02em}.brand .ico{margin-right:.15rem}
+.accent{color:var(--ember)}
+.hero .accent{color:var(--gold)}
 
-/* cards: lift + glow border + entrance */
-.card{position:relative;transition:transform .35s cubic-bezier(.2,.8,.2,1),box-shadow .35s;backdrop-filter:blur(4px)}
-.card:hover{transform:translateY(-4px);box-shadow:0 14px 34px rgba(255,107,53,.18),0 2px 8px rgba(43,26,61,.08)}
-.card::before{content:"";position:absolute;inset:-1px;border-radius:inherit;padding:1px;background:linear-gradient(135deg,rgba(255,107,53,.0),rgba(255,182,39,.0));-webkit-mask:linear-gradient(#000 0 0) content-box,linear-gradient(#000 0 0);-webkit-mask-composite:xor;mask-composite:exclude;transition:background .35s;pointer-events:none}
-.card:hover::before{background:linear-gradient(135deg,var(--ember),var(--gold))}
-.reveal{opacity:0;transform:translateY(18px)}
-.reveal.in{opacity:1;transform:none;transition:opacity .7s ease,transform .7s cubic-bezier(.2,.8,.2,1)}
+/* Cards: flat, hairline; only linked cards lift 2px */
+.card{box-shadow:none;border:1px solid var(--line);transition:transform .18s ease,border-color .18s,box-shadow .18s}
+a.card:hover{transform:translateY(-2px);border-color:#d6c6b5;box-shadow:0 10px 24px rgba(31,23,41,.08)}
 
-/* buttons: gradient, glow, shine sweep */
-.btn{background:linear-gradient(135deg,var(--ember),#ff8a3d 60%,var(--gold));box-shadow:0 6px 18px rgba(255,107,53,.35);position:relative;overflow:hidden;transition:transform .2s,box-shadow .2s}
-.btn:hover{transform:translateY(-2px);box-shadow:0 10px 26px rgba(255,107,53,.5)}
-.btn::after{content:"";position:absolute;top:0;left:-60%;width:40%;height:100%;background:linear-gradient(100deg,transparent,rgba(255,255,255,.45),transparent);transform:skewX(-20deg);transition:left .6s}
-.btn:hover::after{left:130%}
-.btn.ghost{background:transparent;box-shadow:none}
-.btn.light{background:#fff;color:var(--plum);box-shadow:0 6px 18px rgba(0,0,0,.18)}
-.chip{transition:transform .2s}.chip:hover{transform:scale(1.06)}
+/* Buttons: solid fill, step 1px up, press 1px down + .985 */
+.btn{background:var(--ember);box-shadow:none;transition:transform .15s ease,background-color .15s ease}
+.btn:hover{background:#e85a26;transform:translateY(-1px)}
+.btn:active{transform:translateY(1px) scale(.985);transition-duration:.09s}
+.btn.ghost{background:transparent;color:var(--ember);border:1.5px solid var(--ember)}
+.btn.ghost:hover{background:rgba(255,107,53,.08)}
+.btn.light{background:#fff;color:var(--plum);box-shadow:none}
+.btn.light:hover{background:#f3ece5}
 
-/* floating embers (whole site) */
-.embers{position:fixed;inset:0;pointer-events:none;z-index:0;overflow:hidden}
-.embers i{position:absolute;bottom:-20px;width:6px;height:6px;border-radius:50%;background:radial-gradient(circle,#fff6d0,var(--gold) 40%,var(--ember) 70%,transparent 72%);box-shadow:0 0 10px 2px rgba(255,140,50,.6);opacity:0;animation:rise linear infinite}
-main,footer{position:relative;z-index:1}
+/* ---------- HERO: still Arizona dusk ground + Ember's own Campfire screen ---------- */
+.hero{padding:0;min-height:520px;display:grid;grid-template-columns:1.05fr 1fr;align-items:center;gap:2rem;background:linear-gradient(180deg,#1d1030 0%,#3b1c47 38%,#7c3150 66%,#d75b3c 88%,#f39a4f 100%);border-radius:24px;box-shadow:none}
+.hero .inner{position:relative;z-index:3;padding:3.25rem 0 3.25rem 2.5rem}
+.hero h1{font-size:clamp(2.4rem,5.4vw,4rem);line-height:1.02;margin-bottom:1rem}
+.hero p{font-size:1.1rem;opacity:.88}
+.hero .tag{display:inline-block;font:600 .78rem system-ui;letter-spacing:.1em;text-transform:uppercase;color:rgba(255,255,255,.8);margin-bottom:1.1rem}
+.hero svg.land{position:absolute;left:0;right:0;bottom:0;width:100%;height:34%;z-index:1;pointer-events:none}
+.hero .shot{position:relative;z-index:3;padding:2.5rem 2.5rem 2.5rem 0}
+@media (max-width:860px){.hero{grid-template-columns:1fr}.hero .inner{padding:2.5rem 1.4rem 0}.hero .shot{padding:0 1rem 2rem}}
 
-/* ---------- HERO: animated Arizona sunset ---------- */
-.hero{padding:0;min-height:440px;display:flex;align-items:center;background:linear-gradient(180deg,#1b0f2b 0%,#3a1d4a 30%,#8a3552 55%,#e2603f 75%,#ffb05a 100%);background-size:100% 160%;animation:dusk 14s ease-in-out infinite alternate;box-shadow:0 24px 60px rgba(43,26,61,.35)}
-.hero .inner{position:relative;z-index:3;padding:3rem 1.75rem 7.5rem;max-width:620px}
-.hero h1{font-size:clamp(2.2rem,6vw,3.6rem);text-shadow:0 4px 30px rgba(0,0,0,.35)}
-.hero .tag{display:inline-block;font:600 .8rem system-ui;letter-spacing:.12em;text-transform:uppercase;background:rgba(255,255,255,.12);border:1px solid rgba(255,255,255,.25);padding:.35rem .8rem;border-radius:999px;margin-bottom:1rem}
-.hero .sun{position:absolute;right:12%;bottom:26%;width:190px;height:190px;border-radius:50%;background:radial-gradient(circle,#fff3c4,#ffc35a 45%,#ff7a3d 70%,rgba(255,107,53,0) 72%);filter:blur(.5px);animation:pulse 5s ease-in-out infinite;z-index:1}
-.hero .stars{position:absolute;inset:0 0 50% 0;background-image:radial-gradient(1.5px 1.5px at 20% 30%,#fff,transparent),radial-gradient(1px 1px at 70% 20%,#fff,transparent),radial-gradient(1.5px 1.5px at 40% 12%,#fff,transparent),radial-gradient(1px 1px at 85% 40%,#fff,transparent),radial-gradient(1px 1px at 10% 8%,#fff,transparent),radial-gradient(1.5px 1.5px at 58% 35%,#fff,transparent),radial-gradient(1px 1px at 92% 10%,#fff,transparent);animation:twinkle 4s ease-in-out infinite alternate;z-index:0}
-.hero svg.land{position:absolute;left:0;right:0;bottom:0;width:100%;height:46%;z-index:2}
-.hero .bigflame{position:absolute;right:9%;bottom:8%;z-index:3}
-.hero .bigflame .flame-wrap{--max:170px}
-@media (max-width:700px){.hero .sun{width:70px;height:70px;right:14px;top:14px;bottom:auto;opacity:.85}.hero .tag{margin-right:70px}.hero .bigflame{display:none}.hero .inner{padding-bottom:6rem}}
+/* App frame: the real Campfire, small */
+.app{background:#fffaf4;border-radius:16px;box-shadow:0 30px 60px rgba(20,8,30,.45),0 0 0 1px rgba(255,255,255,.12);overflow:hidden;color:var(--ink);text-decoration:none;display:block;transition:transform .18s ease}
+.app:hover{transform:translateY(-2px)}
+.app .bar{display:flex;align-items:center;gap:6px;padding:.6rem .8rem;background:#f1e7dc;border-bottom:1px solid var(--line);font:600 .78rem system-ui;color:#6f6577}
+.app .bar i{width:10px;height:10px;border-radius:50%;background:#e0d2c4}
+.app .bar span{margin-left:.5rem}
+.app .rows{padding:.4rem .9rem .8rem}
+.app .r{display:grid;grid-template-columns:44px 1fr auto;align-items:center;gap:.7rem;padding:.5rem 0;border-bottom:1px solid #f0e6dc}
+.app .r:last-child{border-bottom:0}
+.app .r .flame-wrap{--max:44px;height:50px}
+.app .r .logs{height:5px}
+.app .nm{font-weight:600;font-size:.95rem;line-height:1.2}
+.app .sub{font-size:.8rem;color:#6f6577}
+.app .meter{width:84px;height:6px;border-radius:6px;background:#efe3d6;overflow:hidden}
+.app .meter b{display:block;height:100%;background:var(--ember);border-radius:6px}
 
-/* steps row */
-.steps .card h3{display:flex;align-items:center;gap:.6rem}
-.steps .num{display:inline-grid;place-items:center;width:38px;height:38px;border-radius:12px;background:linear-gradient(135deg,var(--ember),var(--gold));color:#fff;font:700 1.1rem "Space Grotesk";box-shadow:0 6px 16px rgba(255,107,53,.35)}
-.steps .emoji{font-size:2.2rem;display:block;margin-bottom:.3rem;animation:bob 3s ease-in-out infinite}
-.steps .card:nth-child(2) .emoji{animation-delay:.4s}.steps .card:nth-child(3) .emoji{animation-delay:.8s}.steps .card:nth-child(4) .emoji{animation-delay:1.2s}
-
-/* match score ring */
-.ring{--p:0;width:74px;height:74px;border-radius:50%;display:grid;place-items:center;background:conic-gradient(var(--ember) calc(var(--p)*1%),#f3e6da 0);transition:--p 1s;flex:none}
-.ring b{display:grid;place-items:center;width:58px;height:58px;border-radius:50%;background:#fff;font:700 1.15rem "Space Grotesk";color:var(--ember)}
-.topmatch{border:2px solid transparent!important;background:linear-gradient(#fff,#fff) padding-box,linear-gradient(135deg,var(--ember),var(--gold)) border-box!important}
-.badge{position:absolute;top:-12px;left:16px;background:linear-gradient(135deg,var(--ember),var(--gold));color:#fff;font:700 .75rem system-ui;padding:.25rem .6rem;border-radius:999px;box-shadow:0 4px 12px rgba(255,107,53,.4)}
-
-/* page banner (dark night) */
-.banner{position:relative;overflow:hidden;border-radius:20px;padding:1.6rem 1.5rem;margin-bottom:1.25rem;color:#fff;background:linear-gradient(135deg,#1b0f2b,#3a1d4a 60%,#6b2c4a);box-shadow:0 18px 40px rgba(43,26,61,.3)}
-.banner h1{color:#fff}.banner p{opacity:.85;margin:.2rem 0 0}
-.banner::after{content:"";position:absolute;inset:0;background-image:radial-gradient(1.5px 1.5px at 15% 25%,#fff,transparent),radial-gradient(1px 1px at 65% 15%,#fff,transparent),radial-gradient(1.5px 1.5px at 85% 60%,#fff,transparent),radial-gradient(1px 1px at 35% 70%,#fff,transparent),radial-gradient(1px 1px at 92% 22%,#fff,transparent);animation:twinkle 3s ease-in-out infinite alternate;pointer-events:none}
-.banner .btn.ghost{color:#fff;border-color:rgba(255,255,255,.6)}
-.stat{overflow:hidden}
-.stat::after{content:"";position:absolute;right:-20px;bottom:-20px;width:90px;height:90px;border-radius:50%;background:radial-gradient(circle,rgba(255,182,39,.25),transparent 70%)}
-.stat b{background:linear-gradient(135deg,var(--plum),var(--ember));-webkit-background-clip:text;background-clip:text;color:transparent}
-.mini{background:linear-gradient(180deg,#fff 0%,#fff 55%,#fff4ea 100%)}
-.mini.st-hot{box-shadow:0 0 0 1px rgba(255,107,53,.2),0 10px 30px rgba(255,107,53,.18)}
-.barfill{animation:grow 1.4s cubic-bezier(.2,.8,.2,1) both}
-
-@keyframes rise{0%{transform:translateY(0) translateX(0) scale(1);opacity:0}10%{opacity:.9}100%{transform:translateY(-105vh) translateX(var(--dx,30px)) scale(.4);opacity:0}}
-@keyframes bob{0%,100%{transform:translateY(0)}50%{transform:translateY(-5px)}}
-@keyframes shine{to{background-position:200% center}}
-@keyframes dusk{from{background-position:0 0}to{background-position:0 100%}}
-@keyframes pulse{0%,100%{transform:scale(1);opacity:.95}50%{transform:scale(1.06);opacity:1}}
-@keyframes twinkle{from{opacity:.4}to{opacity:1}}
-@keyframes grow{from{transform:scaleX(0);transform-origin:left}to{transform:scaleX(1);transform-origin:left}}
-@media (prefers-reduced-motion:reduce){*,*::before,*::after{animation:none!important;transition:none!important}.reveal{opacity:1;transform:none}.embers{display:none}}
-/* taste-skill ideas: hero enters once, buttons press, underlines draw */
-.hero .inner>*{opacity:0;transform:translateY(16px);animation:enter .8s cubic-bezier(.2,.8,.2,1) forwards}
-.hero .inner>*:nth-child(2){animation-delay:.12s}.hero .inner>*:nth-child(3){animation-delay:.24s}.hero .inner>*:nth-child(4){animation-delay:.36s}
-.hero .bigflame{opacity:0;animation:enter 1.1s .45s cubic-bezier(.2,.8,.2,1) forwards}
-.btn:active{transform:translateY(0) scale(.97)}
-nav a:not(.brand){border-bottom:0!important;background:linear-gradient(var(--gold),var(--gold)) no-repeat left bottom/0 2px;transition:background-size .3s}
-nav a:not(.brand):hover,nav a[aria-current]{background-size:100% 2px}
+/* Split-text hero entrance: words rise once, under 1.1s total */
+[data-split] .w{display:inline-block;overflow:hidden;vertical-align:top;padding-bottom:.08em;margin-bottom:-.08em}
+[data-split] .w>span{display:inline-block;transform:translateY(105%);animation:wordUp .7s var(--ease-enter) forwards}
+.hero .inner>p,.hero .inner>.row{opacity:0;transform:translateY(10px);animation:enter .6s var(--ease-enter) .45s forwards}
+.hero .shot{opacity:0;transform:translateY(16px);animation:enter .8s var(--ease-enter) .3s forwards}
+@keyframes wordUp{to{transform:none}}
 @keyframes enter{to{opacity:1;transform:none}}
-@media (prefers-reduced-motion:reduce){.hero .inner>*,.hero .bigflame{opacity:1!important;transform:none!important}}
+
+/* Steps */
+.steps .card h3{display:flex;align-items:center;gap:.6rem}
+.steps .num{display:inline-grid;place-items:center;width:30px;height:30px;border-radius:8px;background:var(--plum);color:#fff;font:700 .95rem "Space Grotesk"}
+
+/* Match score ring */
+.ring{--p:0;width:64px;height:64px;border-radius:50%;display:grid;place-items:center;background:conic-gradient(var(--ember) calc(var(--p)*1%),#f1e5d8 0);flex:none}
+.ring b{display:grid;place-items:center;width:50px;height:50px;border-radius:50%;background:#fff;font:700 1rem "Space Grotesk";color:var(--ink)}
+.topmatch{border-color:var(--ember)!important}
+.badge{position:absolute;top:-11px;left:16px;background:var(--ember);color:#fff;font:700 .72rem system-ui;letter-spacing:.04em;text-transform:uppercase;padding:.22rem .6rem;border-radius:6px}
+
+/* Page banners: plum ground, no stars */
+.banner{position:relative;border-radius:18px;padding:1.5rem 1.5rem;margin-bottom:1.25rem;color:#fff;background:var(--plum)}
+.banner h1{color:#fff;font-size:clamp(1.6rem,3.6vw,2.3rem)}.banner p{opacity:.8;margin:.2rem 0 0}
+.banner .btn.ghost{color:#fff;border-color:rgba(255,255,255,.55)}
+.banner .btn.ghost:hover{background:rgba(255,255,255,.08)}
+.stat b{color:var(--ink)}
+.barfill{transform-origin:left;animation:grow 1s var(--ease-enter) both}
+@keyframes grow{from{transform:scaleX(0)}to{transform:scaleX(1)}}
+@media (prefers-reduced-motion:reduce){*,*::before,*::after{animation:none!important;transition:none!important}[data-split] .w>span,.hero .inner>p,.hero .inner>.row,.hero .shot{transform:none!important;opacity:1!important}}
 `;
 
 export function layout(title: string, body: string, active = "", description = "Ember: mentorships that don't fizzle out. Built for TechWomenAZ."): string {
@@ -183,17 +176,19 @@ export function layout(title: string, body: string, active = "", description = "
 <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;700&display=swap" rel="stylesheet">
 <style>${CSS}</style></head><body>
 <nav aria-label="Main"><a class="brand" href="/"><span class="ico">🔥</span> <span class="word">ember</span></a>${link("/", "Home")}${link("/join", "Join")}${link("/opportunities", "Opportunities")}${link("/campfire", "Campfire")}</nav>
-<div class="embers" aria-hidden="true"><i style="left:0%;animation-duration:9s;animation-delay:0s;--dx:-40px;width:3px;height:3px"></i><i style="left:37%;animation-duration:16s;animation-delay:2s;--dx:-11px;width:4px;height:4px"></i><i style="left:74%;animation-duration:14s;animation-delay:4s;--dx:18px;width:5px;height:5px"></i><i style="left:11%;animation-duration:12s;animation-delay:6s;--dx:-33px;width:6px;height:6px"></i><i style="left:48%;animation-duration:10s;animation-delay:8s;--dx:-4px;width:3px;height:3px"></i><i style="left:85%;animation-duration:17s;animation-delay:10s;--dx:25px;width:4px;height:4px"></i><i style="left:22%;animation-duration:15s;animation-delay:1s;--dx:-26px;width:5px;height:5px"></i><i style="left:59%;animation-duration:13s;animation-delay:3s;--dx:3px;width:6px;height:6px"></i><i style="left:96%;animation-duration:11s;animation-delay:5s;--dx:32px;width:3px;height:3px"></i><i style="left:33%;animation-duration:9s;animation-delay:7s;--dx:-19px;width:4px;height:4px"></i><i style="left:70%;animation-duration:16s;animation-delay:9s;--dx:10px;width:5px;height:5px"></i><i style="left:7%;animation-duration:14s;animation-delay:0s;--dx:39px;width:6px;height:6px"></i><i style="left:44%;animation-duration:12s;animation-delay:2s;--dx:-12px;width:3px;height:3px"></i><i style="left:81%;animation-duration:10s;animation-delay:4s;--dx:17px;width:4px;height:4px"></i><i style="left:18%;animation-duration:17s;animation-delay:6s;--dx:-34px;width:5px;height:5px"></i><i style="left:55%;animation-duration:15s;animation-delay:8s;--dx:-5px;width:6px;height:6px"></i><i style="left:92%;animation-duration:13s;animation-delay:10s;--dx:24px;width:3px;height:3px"></i><i style="left:29%;animation-duration:11s;animation-delay:1s;--dx:-27px;width:4px;height:4px"></i></div>
 <main>${body}</main>
 <div class="toast" id="toast" role="status" aria-live="polite"></div>
-<footer>Ember for TechWomenAZ · FireBytes 2026 · Every phoenix starts as an ember.</footer>
+<footer>Ember · built for TechWomenAZ at FireBytes 2026 · people and postings shown are demo data</footer>
 <script>
 (function(){
-  // Scroll/entrance reveal for cards, staggered
-  var els=document.querySelectorAll('main .card');
-  els.forEach(function(el,i){el.classList.add('reveal');el.style.transitionDelay=Math.min(i,10)*60+'ms';});
-  var io='IntersectionObserver' in window?new IntersectionObserver(function(es){es.forEach(function(e){if(e.isIntersecting){e.target.classList.add('in');io.unobserve(e.target);}})},{threshold:.08}):null;
-  els.forEach(function(el){io?io.observe(el):el.classList.add('in')});
+  // Split text: wrap each word of [data-split] so it rises once on load (text stays in the HTML)
+  document.querySelectorAll('[data-split]').forEach(function(h){var i=0;
+    (function walk(node){Array.from(node.childNodes).forEach(function(n){
+      if(n.nodeType===3){var frag=document.createDocumentFragment();n.textContent.split(/(\s+)/).forEach(function(part){
+        if(!part)return;if(/^\s+$/.test(part)){frag.appendChild(document.createTextNode(part));return}
+        var w=document.createElement('span');w.className='w';var inner=document.createElement('span');inner.textContent=part;inner.style.animationDelay=(i++*70)+'ms';w.appendChild(inner);frag.appendChild(w);});
+        n.parentNode.replaceChild(frag,n);}
+      else if(n.nodeType===1)walk(n);});})(h);});
   // Count-up numbers: <b data-count="70" data-suffix="%">
   document.querySelectorAll('[data-count]').forEach(function(el){var to=parseFloat(el.dataset.count),dec=(el.dataset.count.split('.')[1]||'').length,pre=el.dataset.prefix||'',suf=el.dataset.suffix||'',t0=null;
     function step(t){if(!t0)t0=t;var k=Math.min(1,(t-t0)/1200),e=1-Math.pow(1-k,3);el.textContent=pre+(to*e).toFixed(dec)+suf;if(k<1)requestAnimationFrame(step)}requestAnimationFrame(step);});

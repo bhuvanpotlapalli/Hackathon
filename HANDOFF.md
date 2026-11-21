@@ -49,6 +49,9 @@ Local test without a login: `npx wrangler dev -c wrangler.mock.jsonc` then open 
 - ✅ **README** rewritten (live link fixed to `fortfein`). Still to fill in: video link.
 - ⏳ **Next**: deploy and check the live site in a private window, merge `ember` into `main`, record the video (script in the team playbook §12, mention coursework matching + the opportunities board), submit by 1:25.
 
+## Design rules (from taste-skill)
+- No emoji in headings or buttons, no gradient text, no glow or shine sweeps, no scroll-in card reveals, no twinkling. Buttons step 1px up on hover and press on click; linked cards lift 2px. One hero entrance (split-text headline). The hero shows the real Campfire, not decoration.
+
 ## Rules
 - **JS wants every reply to end with a TODO list of what they should do next.**
 - Never push to `main` without JS's OK. Work on the `ember` branch, JS merges.

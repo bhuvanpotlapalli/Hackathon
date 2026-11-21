@@ -49,36 +49,42 @@ async function flamesByPair(env: Env): Promise<Map<number, { flame: Flame; check
 
 // ---------------------------------------------------------------- Home
 export async function home(env: Env): Promise<Response> {
-  const mentees = (await db.listMentees(env.DB)).slice(0, 12);
+  const [mentees, pairs, flames] = await Promise.all([db.listMentees(env.DB), db.listPairs(env.DB), flamesByPair(env)]);
+  const all = pairs.map((p) => ({ p, flame: flames.get(p.id)!.flame })).sort((a, b) => b.flame.heat - a.flame.heat);
+  // One pair from each part of the range, so the preview shows every flame state.
+  const live = [0, 0.3, 0.6, 1].map((k) => all[Math.round(k * (all.length - 1))]).filter((v, i, arr) => v && arr.indexOf(v) === i);
   const body = `
 <section class="hero">
-  <div class="stars"></div><div class="sun"></div>
   <svg class="land" viewBox="0 0 1200 300" preserveAspectRatio="none" aria-hidden="true">
-    <path d="M0 170 L120 120 L210 150 L320 80 L430 140 L520 110 L640 160 L760 90 L880 150 L990 100 L1100 140 L1200 115 L1200 300 L0 300Z" fill="#5a2a4a" opacity=".75"/>
-    <path d="M0 220 L150 180 L300 210 L470 170 L620 215 L800 175 L960 210 L1200 180 L1200 300 L0 300Z" fill="#3a1d3f"/>
-    <g fill="#221330">
-      <path d="M160 300 V215 q0-10 9-10 q9 0 9 10 V300Z M160 250 h-16 q-8 0-8-8 v-18 q0-6 6-6 q6 0 6 6 v12 h12Z M178 240 h14 v-14 q0-6 6-6 q6 0 6 6 v20 q0 8-8 8 h-18Z"/>
-      <path d="M980 300 V200 q0-12 11-12 q11 0 11 12 V300Z M980 245 h-18 q-9 0-9-9 v-22 q0-7 7-7 q7 0 7 7 v14 h13Z M1002 232 h16 v-18 q0-7 7-7 q7 0 7 7 v25 q0 9-9 9 h-21Z"/>
-      <path d="M0 300 L0 250 Q300 225 600 245 T1200 240 L1200 300Z"/>
-    </g>
+    <path d="M0 170 L120 120 L210 150 L320 80 L430 140 L520 110 L640 160 L760 90 L880 150 L990 100 L1100 140 L1200 115 L1200 300 L0 300Z" fill="#5a2a4a" opacity=".55"/>
+    <path d="M0 230 L150 195 L300 222 L470 185 L620 225 L800 190 L960 222 L1200 195 L1200 300 L0 300Z" fill="#2c1638"/>
   </svg>
-  <div class="bigflame">${flameHtml({ heat: 92, status: "Blazing", daysQuiet: 0, streak: 4 }, 170)}</div>
   <div class="inner">
-  <span class="tag">🔥 FireBytes 2026 · for TechWomenAZ</span>
-  <h1>Mentorships that <span class="grad">don't fizzle out</span></h1>
-  <p>Built for <b>TechWomenAZ</b>. We match college students and career changers with mentors who have taken the same courses, then keep every pair meeting. Meet and your flame grows. Go quiet and it fades.</p>
-  <div class="row" style="margin-top:1rem">
-    <a class="btn" href="/join?role=mentee">Find a mentor</a>
-    <a class="btn light" href="/join?role=mentor">Become a mentor</a>
-    <a class="btn ghost" style="color:#fff;border-color:#fff" href="/opportunities/new">Post an opportunity</a>
+    <span class="tag">TechWomenAZ mentorship</span>
+    <h1 data-split>Mentorships that <span class="accent">don't fizzle out</span></h1>
+    <p>Mentees are matched with mentors who have taken the same courses. Each pair gets a flame that grows when they meet and fades when they go quiet, so TechWomenAZ can step in before a pair drifts apart.</p>
+    <div class="row" style="margin-top:1.4rem">
+      <a class="btn" href="/join?role=mentee">Find a mentor</a>
+      <a class="btn light" href="/join?role=mentor">Become a mentor</a>
+      <a class="btn ghost" style="color:#fff;border-color:rgba(255,255,255,.6)" href="/opportunities/new">Post an opportunity</a>
+    </div>
   </div>
+  <div class="shot">
+    <a class="app" href="/campfire" aria-label="Open the Campfire dashboard">
+      <div class="bar"><i></i><i></i><i></i><span>Campfire · ${all.length} pairs</span></div>
+      <div class="rows">${live
+        .map(
+          (r) => `<div class="r">${flameHtml(r.flame, 44)}<div><div class="nm">${esc(r.p.mentee_name.split(" ")[0])} + ${esc(r.p.mentor_name.split(" ")[0])}</div><div class="sub">${esc(r.p.career)} · ${statusHtml(r.flame.status)}</div></div><div class="meter" aria-label="heat ${r.flame.heat}"><b style="width:${r.flame.heat}%"></b></div></div>`,
+        )
+        .join("")}</div>
+    </a>
   </div>
 </section>
 <div class="grid steps">
-  <div class="card"><span class="emoji">🎓</span><h3><span class="num">1</span> Match</h3><p>Tell us your career path and the courses you're taking. Ember finds mentors who have been through the same coursework.</p></div>
-  <div class="card"><span class="emoji">🗺️</span><h3><span class="num">2</span> Plan</h3><p>Every pair gets a goal and three milestones, so no meeting is just "catching up."</p></div>
-  <div class="card"><span class="emoji">🔥</span><h3><span class="num">3</span> Keep it lit</h3><p>Log a meeting in 30 seconds and watch your flame grow. TechWomenAZ relights fading pairs from the Campfire.</p></div>
-  <div class="card"><span class="emoji">🚀</span><h3><span class="num">4</span> Get opportunities</h3><p>Employers post internships, jobs and mentorship programs with the coursework they want. Ember shows each student the ones they fit.</p></div>
+  <div class="card"><h3><span class="num">1</span> Match</h3><p>Tell us your career path and the courses you're taking. Ember finds mentors who have been through the same coursework.</p></div>
+  <div class="card"><h3><span class="num">2</span> Plan</h3><p>Every pair gets a goal and three milestones, so no meeting is just "catching up."</p></div>
+  <div class="card"><h3><span class="num">3</span> Keep meeting</h3><p>Log a meeting in 30 seconds and watch your flame grow. TechWomenAZ relights fading pairs from the Campfire.</p></div>
+  <div class="card"><h3><span class="num">4</span> Get opportunities</h3><p>Employers post internships, jobs and mentorship programs with the coursework they want. Ember shows each student the ones they fit.</p></div>
 </div>
 <div class="card" style="margin-top:1.25rem">
   <h3>Try the demo as a mentee</h3>
@@ -92,7 +98,7 @@ export async function home(env: Env): Promise<Response> {
 export function joinForm(url: URL, error = ""): Response {
   const role = url.searchParams.get("role") === "mentor" ? "mentor" : "mentee";
   const body = `
-<div class="banner"><h1>Join <span class="grad">Ember</span> 🔥</h1>
+<div class="banner"><h1>Join Ember</h1>
 <p>Two minutes. TechWomenAZ mentoring is for college students and adults. You don't need a tech degree.</p></div>
 ${error ? `<div class="notice" style="background:#fdecea;border-color:#f5c2bd;color:#7a1f16" role="alert">${esc(error)}</div>` : ""}
 <form method="post" action="/join" class="card">
@@ -122,7 +128,7 @@ ${error ? `<div class="notice" style="background:#fdecea;border-color:#f5c2bd;co
   <label class="check"><input type="checkbox" name="no_degree" value="1"> I don't have a tech degree</label>
   <label class="check"><input type="checkbox" name="adult" value="1" required> I'm 18 or older and in college or beyond</label>
   <label class="check"><input type="checkbox" name="consent" value="1" required> I agree that TechWomenAZ can store my answers to run the program and report combined, anonymous results</label>
-  <div style="margin-top:1rem"><button class="btn" type="submit">Join and see my matches 🔥</button></div>
+  <div style="margin-top:1rem"><button class="btn" type="submit">Join and see my matches</button></div>
 </form>
 <script>
 function roleChange(){var m=document.querySelector('input[name=role]:checked').value==='mentor';
@@ -131,7 +137,7 @@ document.getElementById('coursesLabel').textContent=m?'Courses you have taken or
 document.getElementById('coursesHint').textContent=m?'Mentees taking these courses will be matched with you.':'We match you with mentors who have been through the same coursework.';
 document.getElementById('goalLabel').textContent=m?'What you can help with':'Your main goal';
 document.getElementById('headlineLabel').textContent=m?'Your role':'Where you are now';
-document.querySelector('button[type=submit]').textContent=m?'Join as a mentor 🔥':'Join and see my matches 🔥';}
+document.querySelector('button[type=submit]').textContent=m?'Join as a mentor':'Join and see my matches';}
 roleChange();
 </script>`;
   return html(layout("Join", body, "/join"));
@@ -175,7 +181,7 @@ export async function mentorWelcome(env: Env, id: number): Promise<Response> {
     .sort((a, b) => b.r.score - a.r.score)
     .slice(0, 4);
   const body = `
-<div class="notice">🔥 Welcome, ${esc(u.name)}! You're on the mentor list with room for ${u.capacity} mentee${u.capacity > 1 ? "s" : ""}.</div>
+<div class="notice">Welcome, ${esc(u.name)}. You're on the mentor list with room for ${u.capacity} mentee${u.capacity > 1 ? "s" : ""}.</div>
 <h1>Mentees who could use your experience</h1>
 <p class="muted">Based on the courses you listed: ${chips(u.courses.split(",").map((c) => c.trim()).filter(Boolean), "sage")}</p>
 <div class="grid">${
@@ -213,12 +219,12 @@ export async function matches(env: Env, menteeId: number): Promise<Response> {
     .slice(0, 3);
 
   const body = `
-<div class="banner"><h1>Hi ${esc(mentee.name.split(" ")[0])}, here are your <span class="grad">top matches</span> ✨</h1>
+<div class="banner"><h1>Hi ${esc(mentee.name.split(" ")[0])}, here are your top matches</h1>
 <p>Ranked by career path, shared coursework, goals, schedule and format. You choose.</p></div>
 <p>Your courses: ${chips(mentee.courses.split(",").map((c) => c.trim()).filter(Boolean), "sage")}</p>
 ${
   myPairs.length
-    ? `<div class="notice">Your mentors: ${myPairs.map((p) => `<a href="/pair/${p.id}">${esc(p.mentor_name)} 🔥</a>`).join(" · ")}</div>`
+    ? `<div class="notice">Your mentors: ${myPairs.map((p) => `<a href="/pair/${p.id}">${esc(p.mentor_name)}</a>`).join(" · ")}</div>`
     : ""
 }
 <div class="grid">${
@@ -226,7 +232,7 @@ ${
       ? top
           .map(
             (r, i) => `
-  <div class="card${i === 0 ? " topmatch" : ""}">${i === 0 ? `<span class="badge">🔥 Best match</span>` : ""}
+  <div class="card${i === 0 ? " topmatch" : ""}">${i === 0 ? `<span class="badge">Best match</span>` : ""}
     <div class="row" style="justify-content:space-between;flex-wrap:nowrap"><h3 style="margin:0">${esc(r.mentor.name)}</h3><div class="ring" data-p="${r.score}" role="img" aria-label="${r.score} percent match"><b>${r.score}%</b></div></div>
     <p class="muted" style="margin:.2rem 0">${esc(r.mentor.headline)}</p>
     <p style="margin:.2rem 0;font-size:.9rem">🎓 ${esc(r.mentor.school)}</p>
@@ -247,8 +253,8 @@ ${
       : `<div class="card"><p class="muted">No postings fit yet. <a href="/opportunities">See all opportunities</a>.</p></div>`
   }</div>
 <script>
-document.querySelectorAll('.why').forEach(function(el){el.textContent='✨ Thinking about why you\'ll click…';
-fetch('/api/why?mentee=${mentee.id}&mentor='+el.dataset.mentor).then(function(r){return r.json()}).then(function(d){el.textContent='✨ '+d.text}).catch(function(){el.textContent=''});});
+document.querySelectorAll('.why').forEach(function(el){el.textContent='Writing why you\'ll click…';
+fetch('/api/why?mentee=${mentee.id}&mentor='+el.dataset.mentor).then(function(r){return r.json()}).then(function(d){el.textContent=d.text}).catch(function(){el.textContent=''});});
 </script>`;
   return html(layout("Your matches", body));
 }
@@ -289,21 +295,21 @@ export async function pairPage(env: Env, pairId: number, url: URL): Promise<Resp
   const doneCount = milestones.filter((m) => m.done).length;
 
   const body = `
-${url.searchParams.get("new") ? `<div class="notice">🔥 It's a match! ${esc(pair.mentee_name)} and ${esc(pair.mentor_name)} are paired. Book your first 20 minutes.</div>` : ""}
-${fromHeat !== null ? `<div class="notice">Meeting logged. Your flame grew from ${fromHeat} to ${flame.heat}. Keep it lit! 🔥</div>` : ""}
+${url.searchParams.get("new") ? `<div class="notice">It's a match. ${esc(pair.mentee_name)} and ${esc(pair.mentor_name)} are paired. Book your first 20 minutes.</div>` : ""}
+${fromHeat !== null ? `<div class="notice">Meeting logged. Your flame grew from ${fromHeat} to ${flame.heat}.</div>` : ""}
 <div class="two" style="align-items:start">
   <div class="card" style="text-align:center">
     <h1 style="font-size:1.5rem">${esc(pair.mentee_name)} + ${esc(pair.mentor_name)}</h1>
     <p class="muted" style="margin:0">${esc(pair.career)} · ${esc(pair.mentor_headline)}</p>
     ${flameHtml(fromHeat !== null ? { ...flame, heat: fromHeat } : flame, 220, "bigFlame")}
     <p style="font-size:1.2rem;margin:.5rem 0">${statusHtml(flame.status)} · heat <b id="heatNum">${flame.heat}</b>/100</p>
-    <p class="muted" style="margin:0">${flame.streak ? `🔥 ${flame.streak}-week streak · ` : ""}${flame.daysQuiet === 0 ? "Met today" : `${flame.daysQuiet} day${flame.daysQuiet > 1 ? "s" : ""} since last meeting`}</p>
+    <p class="muted" style="margin:0">${flame.streak ? `${flame.streak}-week streak · ` : ""}${flame.daysQuiet === 0 ? "Met today" : `${flame.daysQuiet} day${flame.daysQuiet > 1 ? "s" : ""} since last meeting`}</p>
     <p class="muted" style="margin:.3rem 0 0">Confidence: ${pair.start_confidence}/10 at start → <b>${conf}/10</b> now</p>
     <p class="muted" style="font-size:.85rem;margin-top:.6rem">Meet online or in a public place. Contact details stay private until both of you agree to share them.</p>
   </div>
   <div>
     <div class="card">
-      <h2 style="font-size:1.2rem">🎯 Goal</h2><p style="margin-top:0">${esc(pair.goal)}</p>
+      <h2 style="font-size:1.2rem">Goal</h2><p style="margin-top:0">${esc(pair.goal)}</p>
       <h2 style="font-size:1.2rem">Milestones <span class="muted" style="font-size:.9rem">(${doneCount}/${milestones.length})</span></h2>
       ${milestones
         .map(
@@ -311,7 +317,7 @@ ${fromHeat !== null ? `<div class="notice">Meeting logged. Your flame grew from 
         <button class="btn small ${m.done ? "" : "ghost"}" type="submit" aria-label="${m.done ? "Mark not done" : "Mark done"}: ${esc(m.title)}">${m.done ? "✓" : "○"}</button><span>${esc(m.title)}</span></form>`,
         )
         .join("")}
-      <button class="btn small ghost" style="margin-top:.8rem" onclick="spark(this)">✨ Spark my next meeting</button>
+      <button class="btn small ghost" style="margin-top:.8rem" onclick="spark(this)">Write my next meeting agenda</button>
       <div id="agenda" style="margin-top:.6rem" aria-live="polite"></div>
     </div>
     <form class="card" style="margin-top:1rem" method="post" action="/pair/${pair.id}/log">
@@ -325,16 +331,16 @@ ${fromHeat !== null ? `<div class="notice">Meeting logged. Your flame grew from 
       <label for="conf">Confidence about your tech career now: <output id="cOut">${conf}</output>/10</label>
       <input id="conf" name="confidence" type="range" min="1" max="10" value="${conf}" oninput="cOut.value=this.value">
       <input type="hidden" name="from" value="${flame.heat}">
-      <button class="btn" type="submit" style="margin-top:1rem;width:100%">Log it and grow the flame 🔥</button>
+      <button class="btn" type="submit" style="margin-top:1rem;width:100%">Log meeting</button>
     </form>
   </div>
 </div>
 <script>
-function spark(btn){btn.disabled=true;btn.textContent='✨ Writing your agenda…';
+function spark(btn){btn.disabled=true;btn.textContent='Writing your agenda…';
 fetch('/api/agenda/${pair.id}',{method:'POST'}).then(function(r){return r.json()}).then(function(d){
 var box=document.getElementById('agenda');box.innerHTML='<b>Next meeting agenda</b>';var ol=document.createElement('ol');
 d.lines.forEach(function(l){var li=document.createElement('li');li.textContent=l;ol.appendChild(li)});box.appendChild(ol);
-btn.textContent='✨ Spark another';btn.disabled=false;}).catch(function(){btn.disabled=false;btn.textContent='✨ Spark my next meeting';toast('Could not write the agenda. Try again.')});}
+btn.textContent='Write another';btn.disabled=false;}).catch(function(){btn.disabled=false;btn.textContent='Write my next meeting agenda';toast('Could not write the agenda. Try again.')});}
 </script>
 <div class="card" style="margin-top:1rem"><h2 style="font-size:1.2rem">Meeting history</h2>${
     checkins.length
@@ -399,9 +405,9 @@ export async function campfire(env: Env, url: URL): Promise<Response> {
 
   const body = `
 ${url.searchParams.get("reset") ? `<div class="notice">Demo data reset.</div>` : ""}
-<div class="banner"><div class="row" style="justify-content:space-between;position:relative;z-index:1"><h1>🔥 The <span class="grad">Campfire</span></h1>
+<div class="banner"><div class="row" style="justify-content:space-between;position:relative;z-index:1"><h1>Campfire</h1>
 <form method="post" action="/admin/reset" class="no-print" onsubmit="return confirm('Reset all demo data?')"><button class="btn small ghost" type="submit">Reset demo</button></form></div>
-<p>Every mentor–mentee pair as a flame. Weakest first, so nobody slips through the cracks.</p></div>
+<p>Every mentor–mentee pair, quietest first.</p></div>
 <div class="stats">
   <div class="card stat"><b data-count="${Math.round((100 * active) / n)}" data-suffix="%">${Math.round((100 * active) / n)}%</b>pairs active (Glowing or Blazing)</div>
   <div class="card stat"><b data-count="${avgHeat}">${avgHeat}</b>average heat</div>
@@ -409,7 +415,7 @@ ${url.searchParams.get("reset") ? `<div class="notice">Demo data reset.</div>` :
   <div class="card stat"><b data-count="${Math.abs(after - before).toFixed(1)}" data-prefix="${after - before >= 0 ? "+" : "−"}">${after - before >= 0 ? "+" : ""}${(after - before).toFixed(1)}</b>average confidence change since joining</div>
 </div>
 <div class="two" style="align-items:start">
-  <div class="card"><h2 style="font-size:1.2rem">⚠️ Needs attention (${attention.length})</h2>${
+  <div class="card"><h2 style="font-size:1.2rem">Needs attention <span class="muted">(${attention.length})</span></h2>${
     attention.length
       ? attention
           .map(
@@ -425,7 +431,7 @@ ${url.searchParams.get("reset") ? `<div class="notice">Demo data reset.</div>` :
     ${bar("Confidence after mentoring", after, "var(--ember)")}
     <p class="muted" style="font-size:.85rem">Combined numbers only, no names. ${withData.length} pairs with check-ins.</p>
     <div id="rise" aria-live="polite" style="white-space:pre-line;margin:.6rem 0"></div>
-    <div class="row no-print"><button class="btn small" onclick="rise(this)">✨ Write Rise Report</button>
+    <div class="row no-print"><button class="btn small" onclick="rise(this)">Write Rise Report</button>
     <button class="btn small ghost" onclick="window.print()">Print Rise Report</button></div>
   </div>
 </div>
@@ -438,9 +444,9 @@ ${url.searchParams.get("reset") ? `<div class="notice">Demo data reset.</div>` :
     )
     .join("")}</div>
 <script>
-function rise(btn){btn.disabled=true;btn.textContent='✨ Writing…';
-fetch('/api/rise',{method:'POST'}).then(function(r){return r.json()}).then(function(d){document.getElementById('rise').textContent=d.text;btn.textContent='✨ Rewrite';btn.disabled=false;})
-.catch(function(){btn.disabled=false;btn.textContent='✨ Write Rise Report';toast('Could not write the report. Try again.')});}
+function rise(btn){btn.disabled=true;btn.textContent='Writing…';
+fetch('/api/rise',{method:'POST'}).then(function(r){return r.json()}).then(function(d){document.getElementById('rise').textContent=d.text;btn.textContent='Rewrite';btn.disabled=false;})
+.catch(function(){btn.disabled=false;btn.textContent='Write Rise Report';toast('Could not write the report. Try again.')});}
 function relight(id,btn){btn.disabled=true;btn.textContent='Sending…';
 fetch('/nudge/'+id,{method:'POST'}).then(function(r){return r.json()}).then(function(d){toast('🕯️ Nudge saved: "'+d.message+'"');btn.textContent='Nudged ✓';})
 .catch(function(){toast('Could not send the nudge. Try again.');btn.disabled=false;btn.textContent='Send relight nudge';});}
@@ -469,8 +475,8 @@ export async function opportunities(env: Env, url: URL): Promise<Response> {
         .map((o) => oppCard(o.opp, o.score, o.reasons, o.missing))
     : opps.map((o) => oppCard(o));
   const body = `
-${url.searchParams.get("posted") ? `<div class="notice">🔥 Posted! Ember is already matching it to students by coursework.</div>` : ""}
-<div class="banner"><div class="row" style="justify-content:space-between;position:relative;z-index:1"><h1>🚀 <span class="grad">Opportunities</span></h1><a class="btn" href="/opportunities/new">Post an opportunity</a></div>
+${url.searchParams.get("posted") ? `<div class="notice">Posted. Ember is matching it to students by coursework.</div>` : ""}
+<div class="banner"><div class="row" style="justify-content:space-between;position:relative;z-index:1"><h1>Opportunities</h1><a class="btn" href="/opportunities/new">Post an opportunity</a></div>
 <p>Internships, jobs and mentorship programs from TechWomenAZ partners. Each posting lists the coursework it wants, and Ember matches it to students who have taken those courses.</p></div>
 <form method="get" class="row card" style="margin-bottom:1rem"><label for="as" style="margin:0">See fit for</label>
 <select id="as" name="as" style="max-width:260px" onchange="this.form.submit()"><option value="">Everyone</option>${mentees
@@ -538,7 +544,7 @@ export async function oppDetail(env: Env, id: number, url: URL): Promise<Respons
     .sort((a, b) => b.r.score - a.r.score)
     .slice(0, 8);
   const body = `
-${url.searchParams.get("posted") ? `<div class="notice">🔥 Posted! Here are the students whose coursework fits.</div>` : ""}
+${url.searchParams.get("posted") ? `<div class="notice">Posted. These students have the coursework it asks for.</div>` : ""}
 <p><a href="/opportunities">← All opportunities</a></p>
 <div class="two" style="align-items:start">
   ${oppCard(o)}
