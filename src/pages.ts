@@ -62,9 +62,8 @@ export async function home(env: Env): Promise<Response> {
     <path d="M0 230 L150 195 L300 222 L470 185 L620 225 L800 190 L960 222 L1200 195 L1200 300 L0 300Z" fill="#2c1638"/>
   </svg>
   <div class="inner">
-    <span class="tag">Mentorship · Phoenix</span>
-    <h1 data-split>Mentorships that <span class="accent">don't fizzle out</span></h1>
-    <p>Mentees are matched with mentors who have taken the same courses. Each pair gets a flame that grows when they meet and fades when they go quiet, so TechWomenAZ can step in before a pair drifts apart.</p>
+        <h1 data-split>Mentorships that <span class="accent">don't fizzle out</span></h1>
+    <p>Get matched with a mentor who took your classes. Meet, and your flame grows. Go quiet, and we notice.</p>
     <div class="row" style="margin-top:1.4rem">
       <a class="btn" href="/start">Get matched in 2 minutes</a>
       <a class="btn light" href="/start">Become a mentor</a>
@@ -82,15 +81,14 @@ export async function home(env: Env): Promise<Response> {
     </a>
   </div>
 </section>
-<div class="grid steps">
-  <div class="card"><h3><span class="num">1</span> Match</h3><p>Tell us your career path and the courses you're taking. We find mentors who have been through the same coursework.</p></div>
-  <div class="card"><h3><span class="num">2</span> Plan</h3><p>Every pair gets a goal and three milestones, so no meeting is just "catching up."</p></div>
-  <div class="card"><h3><span class="num">3</span> Keep meeting</h3><p>Log a meeting in 30 seconds and watch your flame grow. TechWomenAZ relights fading pairs from the Campfire.</p></div>
-  <div class="card"><h3><span class="num">4</span> Get opportunities</h3><p>Employers post internships, jobs and mentorship programs with the coursework they want. We show each student the ones they fit.</p></div>
-</div>
+<section class="flow" aria-label="How it works">
+  <a class="step" href="/start"><b>Match</b><span>Mentors who took your courses</span></a>
+  <a class="step" href="/matches/19"><b>Plan</b><span>A goal and three milestones</span></a>
+  <a class="step" href="/pair/1"><b>Meet</b><span>Each meeting grows the flame</span></a>
+  <a class="step" href="/opportunities"><b>Launch</b><span>Openings that fit your classes</span></a>
+</section>
 <div class="card" style="margin-top:1.25rem">
-  <h3>Try the demo as a mentee</h3>
-  <p class="muted">These are fictional demo profiles.</p>
+  <h3>Try it as a demo mentee</h3>
   <div class="row">${[...mentees]
     .sort((a, b) => (a.name.startsWith("Elena") ? -1 : b.name.startsWith("Elena") ? 1 : 0))
     .map((m) =>
@@ -108,7 +106,7 @@ export function joinForm(url: URL, error = ""): Response {
   const role = url.searchParams.get("role") === "mentor" ? "mentor" : "mentee";
   const body = `
 <div class="banner"><h1>Join TechWomenAZ mentoring</h1>
-<p>Two minutes. TechWomenAZ mentoring is for college students and adults. You don't need a tech degree.</p></div>
+<p>For college students and adults. No tech degree needed. <a href="/start" style="color:#fff">Prefer a chat?</a></p></div>
 ${error ? `<div class="notice" style="background:#fdecea;border-color:#f5c2bd;color:#7a1f16" role="alert">${esc(error)}</div>` : ""}
 <form method="post" action="/join" class="card">
   <fieldset><legend><b>I want to…</b></legend>
@@ -236,7 +234,7 @@ export async function matches(env: Env, menteeId: number, url: URL): Promise<Res
   const body = `
 ${url.searchParams.get("new") ? `<div class="notice">You're in, ${esc(mentee.name.split(" ")[0])}. ember found these mentors from your courses and goal.</div>` : ""}
 <div class="banner"><h1>${myPairs.length ? `Add another mentor, ${esc(mentee.name.split(" ")[0])}` : `Hi ${esc(mentee.name.split(" ")[0])}, here are your top matches`}</h1>
-<p>Ranked by career path, shared coursework, goals, schedule and format. You choose.</p></div>
+<p>Ranked by shared courses, goals and schedule. You pick.</p></div>
 <p>Your courses: ${chips(mentee.courses.split(",").map((c) => c.trim()).filter(Boolean), "sage")}</p>
 ${
   myPairs.length
@@ -251,7 +249,7 @@ ${
   <div class="card${i === 0 ? " topmatch" : ""}">${i === 0 ? `<span class="badge">Best match</span>` : ""}
     <div class="row" style="justify-content:space-between;flex-wrap:nowrap"><h3 style="margin:0">${esc(r.mentor.name)}</h3><div class="ring" data-p="${r.score}" role="img" aria-label="${r.score} percent match"><b>${r.score}%</b></div></div>
     <p class="muted" style="margin:.2rem 0">${esc(r.mentor.headline)}</p>
-    <p style="margin:.2rem 0;font-size:.9rem">🎓 ${esc(r.mentor.school)}</p>
+    <p class="muted" style="margin:.2rem 0;font-size:.88rem">${esc(r.mentor.school)}</p>
     <div>${chips(r.reasons)}</div>
     <p class="why muted" data-mentor="${r.mentor.id}" style="font-style:italic;margin:.5rem 0"></p>
     <form method="post" action="/choose"><input type="hidden" name="mentee" value="${mentee.id}"><input type="hidden" name="mentor" value="${r.mentor.id}">
@@ -426,7 +424,7 @@ export async function campfire(env: Env, url: URL): Promise<Response> {
 ${url.searchParams.get("reset") ? `<div class="notice">Demo data reset.</div>` : ""}
 <div class="banner"><div class="row" style="justify-content:space-between;position:relative;z-index:1"><h1>Campfire</h1>
 <form method="post" action="/admin/reset" class="no-print" onsubmit="return confirm('Reset all demo data?')"><button class="btn small ghost" type="submit">Reset demo</button></form></div>
-<p>Every mentor–mentee pair, quietest first.</p></div>
+<p>Every pair, quietest first.</p></div>
 <div class="stats">
   <div class="card stat"><b data-count="${Math.round((100 * active) / n)}" data-suffix="%">${Math.round((100 * active) / n)}%</b>pairs active (Glowing or Blazing)</div>
   <div class="card stat"><b data-count="${avgHeat}">${avgHeat}</b>average heat</div>
@@ -496,7 +494,7 @@ export async function opportunities(env: Env, url: URL): Promise<Response> {
   const body = `
 ${url.searchParams.get("posted") ? `<div class="notice">Posted. We're matching it to students by coursework.</div>` : ""}
 <div class="banner"><div class="row" style="justify-content:space-between;position:relative;z-index:1"><h1>Opportunities</h1><a class="btn" href="/opportunities/new">Post an opportunity</a></div>
-<p>Internships, jobs and mentorship programs from TechWomenAZ partners. Each posting lists the coursework it wants, and we match it to students who have taken those courses.</p></div>
+<p>Internships, jobs and programs, matched to the classes you've taken.</p></div>
 <form method="get" class="row card" style="margin-bottom:1rem"><label for="as" style="margin:0">See fit for</label>
 <select id="as" name="as" style="max-width:260px" onchange="this.form.submit()"><option value="">Everyone</option>${mentees
     .map((m) => `<option value="${m.id}"${m.id === asId ? " selected" : ""}>${esc(m.name)}</option>`)
@@ -508,7 +506,7 @@ ${url.searchParams.get("posted") ? `<div class="notice">Posted. We're matching i
 export function oppForm(): Response {
   const body = `
 <h1>Post an opportunity</h1>
-<p class="muted">Employers, partner orgs and mentors can post here. List the coursework you're looking for and we show you the students who fit.</p>
+<p class="muted">List the courses you want. We show you who fits.</p>
 <form method="post" action="/opportunities" class="card">
   <div class="two">
     <div><label for="kind">Type</label><select id="kind" name="kind">${options(OPP_KINDS)}</select></div>

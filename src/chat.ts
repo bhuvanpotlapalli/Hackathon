@@ -67,8 +67,8 @@ function react(step,answer){return fetch('/api/chat/react',{method:'POST',header
 
 async function run(){
   progress();
-  await bot("Hey! I'm ember 🔥 TechWomenAZ's matchmaker. I match people with mentors who've taken the same classes they're taking.");
-  await bot("Two minutes, a few taps, and you'll see your top matches. What should I call you?");
+  await bot("Hey, I'm ember 🔥");
+  await bot("A few taps and you'll meet your mentor matches. What's your name?");
   ask('Your first name',async function(name){P.name=name;progress();
     await bot('Nice to meet you, '+name+'! Are you here to find a mentor, or to be one?');
     chips(['Find a mentor','Be a mentor'],async function(r){P.role=r==='Be a mentor'?'mentor':'mentee';progress();
@@ -84,9 +84,9 @@ async function field(){progress();
   chips(P.role==='mentor'?['Tech degree','Bootcamp','Self-taught','Career changer']:['College student, tech major','College student, other major','Career changer','Bootcamp or self-taught'],async function(bg){
     P.headline=bg;P.no_degree=/tech major|Tech degree/.test(bg)?0:1;progress();
     var list=(C.courses[P.career]||C.courses['Not sure yet']);
-    await bot(P.role==='mentor'?'Which of these have you taken or could you teach? Tap all that apply.':'Which of these have you taken or are taking now? Tap all that apply. This is how I find mentors who have been through the same classes.');
+    await bot(P.role==='mentor'?'Tap the classes you’ve taken or could teach.':'Tap the classes you’ve taken or are taking.');
     chips(list,async function(picked){P.courses=picked;progress();
-      await bot(picked.length?(picked.length+' course'+(picked.length>1?'s':'')+', perfect. That makes matching way more accurate.'):'No worries, your mentor will help you pick your first one.');
+      await bot(picked.length?(picked.length+' class'+(picked.length>1?'es':'')+'. Nice.'):'No worries, your mentor will help you pick your first one.');
       if(P.role==='mentor'){await bot('What can you help mentees with?');ask('e.g. portfolio reviews, interview practice',goal)}
       else{await bot("What's the one thing you want in the next 6 months?");ask('Your goal',goal,C.goals[P.career]||[])}
     },{multi:true,allowEmpty:P.role==='mentee',placeholder:'Other courses (comma-separated)'})});
@@ -98,10 +98,10 @@ async function goal(g){P.goal=g;progress();
     await bot('And where do you want to meet?');
     chips(['Online','Phoenix','Scottsdale','East Valley','West Valley'],async function(w){if(w==='Online'){P.format='Online';P.area='Online only'}else{P.format='Both';P.area=w}progress();
       if(P.role==='mentor'){await bot('How many mentees can you take on?');chips(['1','2','3'],function(n){P.capacity=+n;consent()})}
-      else{await bot('Last one: how confident do you feel about your tech career right now, 1 to 10?');chips(['1','2','3','4','5','6','7','8','9','10'],function(n){P.confidence=+n;consent()})}
+      else{await bot('How confident do you feel about tech right now? 1 to 10.');chips(['1','2','3','4','5','6','7','8','9','10'],function(n){P.confidence=+n;consent()})}
     })})}
 async function consent(){progress();
-  await bot("Almost done. TechWomenAZ mentoring is for people 18+ in college or beyond, and we store your answers to run the program (sponsors only see combined numbers).");
+  await bot("Last thing: you're 18+ and OK with us saving your answers to run the program?");
   chips(["I'm 18+ and that's fine",'Not right now'],async function(c){
     if(c==='Not right now'){await bot('No problem. Come back anytime 🔥');return}
     await bot(P.role==='mentor'?'Saving your profile…':'Lighting your matches…');

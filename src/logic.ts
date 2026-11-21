@@ -91,10 +91,10 @@ export function statusFor(heat: number): Status {
 }
 
 export const STATUS_LABEL: Record<Status, string> = {
-  Blazing: "Blazing 🔥",
-  Glowing: "Glowing 🟠",
-  Flickering: "Flickering 🕯️",
-  Embers: "Embers ⚫",
+  Blazing: "Blazing",
+  Glowing: "Glowing",
+  Flickering: "Flickering",
+  Embers: "Embers",
 };
 
 const STOP = new Set(

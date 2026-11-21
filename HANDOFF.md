@@ -56,6 +56,8 @@ Local test without a login: `npx wrangler dev -c wrangler.mock.jsonc` then open 
 - 7 extra mentors seeded (ids after mentees, so `/matches/19` is still Elena). Every demo mentee except Ben now has a 70%+ best match. **After deploying a seed change, click Reset demo on /campfire.**
 - Rise Report prompt forbids invented numbers/goals and gendered wording.
 
+- ~11:25: light/dark toggle (nav button, remembers choice), page-to-page arrival animations per destination (chat = ignite, Campfire = rise, pair = zoom, home = slide back, others slide), pokeable flames (click any flame: it flares and throws sparks), tighter copy, how-it-works flow replaces numbered cards. Guidance from the impeccable skill (JS's zip), read only; none of its scripts were run.
+
 ## Design rules (from taste-skill)
 - No emoji in headings or buttons, no gradient text, no glow or shine sweeps, no scroll-in card reveals, no twinkling. Buttons step 1px up on hover and press on click; linked cards lift 2px. One hero entrance (split-text headline). The hero shows the real Campfire, not decoration.
 

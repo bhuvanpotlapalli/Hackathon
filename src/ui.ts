@@ -192,6 +192,80 @@ a.card:hover{transform:translateY(-2px);border-color:#d6c6b5;box-shadow:0 10px 2
 .course-row:last-child{border-bottom:0}
 @media (max-width:480px){nav{gap:.6rem;padding:.6rem .75rem}nav a{font-size:.88rem}.brand{font-size:1.1rem}}
 @media (prefers-reduced-motion:reduce){*,*::before,*::after{animation:none!important;transition:none!important}[data-split] .w>span,.hero .inner>p,.hero .inner>.row,.hero .shot{transform:none!important;opacity:1!important}}
+/* How-it-works flow: one connected line, each step a link */
+.flow{display:grid;grid-template-columns:repeat(4,1fr);gap:0;margin:1.5rem 0 1.25rem;position:relative}
+.flow::before{content:"";position:absolute;left:12%;right:12%;top:22px;height:2px;background:linear-gradient(90deg,var(--ember),var(--gold));opacity:.5}
+.step{position:relative;text-align:center;text-decoration:none;color:var(--ink);padding:0 .5rem}
+.step::before{content:"";display:block;width:16px;height:16px;margin:15px auto 14px;border-radius:50%;background:var(--sand);border:3px solid var(--ember);transition:transform .2s var(--ease-enter),background-color .2s}
+.step:hover::before{transform:scale(1.35);background:var(--ember)}
+.step b{display:block;font:700 1.25rem "Space Grotesk",sans-serif}
+.step span{color:var(--muted);font-size:.92rem}
+@media (max-width:640px){.flow{grid-template-columns:1fr 1fr;row-gap:1rem}.flow::before{display:none}}
+
+/* ================= Theme: light / dark (toggle in nav, remembers choice) ================= */
+::selection{background:rgba(255,107,53,.28)}
+:focus-visible{outline:2px solid var(--ember);outline-offset:2px;border-radius:6px}
+html{scrollbar-color:#cdb9a6 transparent}
+.theme-btn{margin-left:.25rem;width:40px;height:40px;border-radius:50%;border:1px solid rgba(255,255,255,.22);background:transparent;color:#fff;display:grid;place-items:center;cursor:pointer;transition:transform .2s var(--ease-enter),background-color .15s}
+.theme-btn:hover{background:rgba(255,255,255,.1)}
+.theme-btn:active{transform:scale(.9) rotate(-20deg)}
+.theme-btn svg{width:20px;height:20px}
+.theme-btn .moon{display:none}
+html[data-theme=dark] .theme-btn .sun{display:none}html[data-theme=dark] .theme-btn .moon{display:block}
+html[data-theme=dark]{--sand:#140c1c;--card:#211629;--line:#3a2b46;--ink:#f3ebe3;--muted:#b9abc4;color-scheme:dark;scrollbar-color:#4a3858 transparent}
+html[data-theme=dark] body{background:var(--sand);color:var(--ink)}
+html[data-theme=dark] .card,html[data-theme=dark] .msg.bot,html[data-theme=dark] .dock,html[data-theme=dark] .ring b{background:var(--card);color:var(--ink);border-color:var(--line)}
+html[data-theme=dark] .msgs{background:#1a1122;border-color:var(--line)}
+html[data-theme=dark] input,html[data-theme=dark] select,html[data-theme=dark] textarea{background:#1a1122;color:var(--ink);border-color:var(--line)}
+html[data-theme=dark] .chip-btn{background:transparent;color:var(--ink)}
+html[data-theme=dark] .chip-btn:hover{background:rgba(255,107,53,.12)}
+html[data-theme=dark] .chip{background:rgba(255,182,39,.12);color:#ffcf8a}
+html[data-theme=dark] .chip.sage{background:rgba(79,157,105,.18);color:#9fd8b2}
+html[data-theme=dark] .chip.plum{background:rgba(190,160,230,.16);color:#d9c6f2}
+html[data-theme=dark] .notice{background:rgba(79,157,105,.14);border-color:rgba(79,157,105,.35);color:#bfe8cc}
+html[data-theme=dark] .mini{background:var(--card)}
+html[data-theme=dark] .stat b,html[data-theme=dark] .ring b{color:var(--ink)}
+html[data-theme=dark] .banner{background:#2a1838;box-shadow:0 0 0 1px var(--line)}
+html[data-theme=dark] .app{background:#1f1528;color:var(--ink)}
+html[data-theme=dark] .app .bar{background:#2a1d35;border-color:var(--line);color:var(--muted)}
+html[data-theme=dark] .app .r{border-color:var(--line)}
+html[data-theme=dark] .app .meter,html[data-theme=dark] .app .bar i{background:#3a2b46}
+html[data-theme=dark] .btn.light{background:#f3ebe3;color:#211629}
+html[data-theme=dark] .st-Blazing{color:#ff8f5e}html[data-theme=dark] .st-Glowing{color:#ffbe5c}html[data-theme=dark] .st-Flickering{color:#e8cf6a}html[data-theme=dark] .st-Embers{color:#a99bb3}
+html[data-theme=dark] .logs{filter:brightness(.8)}
+html[data-theme=dark] main a:not([class]){color:#ff9466}
+html[data-theme=dark] [role=img][style*="f1e7dc"]{background:#3a2b46!important}
+html[data-theme=dark] .btn{color:#fff}html[data-theme=dark] .btn.ghost{color:#ff9466}html[data-theme=dark] .btn.light{color:#211629}
+html[data-theme=dark] footer{color:var(--muted)}
+html.theme-anim *{transition:background-color .35s ease,color .35s ease,border-color .35s ease!important}
+
+/* ================= Page-to-page motion: each kind of button has its own arrival ================= */
+@view-transition{navigation:auto}
+::view-transition-old(root){animation:vtOut .22s ease both}
+::view-transition-new(root){animation:none}
+nav{view-transition-name:topnav}
+::view-transition-group(topnav){animation:none}
+html[data-go] main{animation-duration:.55s;animation-timing-function:var(--ease-enter);animation-fill-mode:both}
+html[data-go=ignite] main{animation-name:goIgnite}
+html[data-go=rise] main{animation-name:goRise}
+html[data-go=slide] main{animation-name:goSlide}
+html[data-go=back] main{animation-name:goBack}
+html[data-go=zoom] main{animation-name:goZoom}
+@keyframes vtOut{to{opacity:0;filter:blur(4px)}}
+@keyframes goIgnite{from{opacity:0;transform:scale(.96) translateY(18px);filter:blur(8px) saturate(1.6)}to{opacity:1;transform:none;filter:none}}
+@keyframes goRise{from{opacity:0;transform:translateY(48px)}to{opacity:1;transform:none}}
+@keyframes goSlide{from{opacity:0;transform:translateX(56px)}to{opacity:1;transform:none}}
+@keyframes goBack{from{opacity:0;transform:translateX(-56px)}to{opacity:1;transform:none}}
+@keyframes goZoom{from{opacity:0;transform:scale(.92);filter:blur(6px)}to{opacity:1;transform:none;filter:none}}
+
+/* ================= Play: poke any flame ================= */
+.flame-wrap{cursor:pointer;-webkit-tap-highlight-color:transparent}
+.flame-wrap .flame{transition:transform .5s var(--ease-enter),width 1.2s,height 1.2s}
+.flame-wrap:hover .flame{transform:scale(1.08)}
+.flame-wrap.flare .flame{animation:flare .9s var(--ease-enter)}
+@keyframes flare{0%{transform:scale(1)}25%{transform:scale(1.45) translateY(-6%)}100%{transform:scale(1)}}
+.spark{position:fixed;z-index:9;width:6px;height:6px;border-radius:50%;pointer-events:none;background:radial-gradient(circle,#fff6d0,var(--gold) 45%,var(--ember) 75%);box-shadow:0 2px 8px rgba(255,107,53,.5)}
+@media (prefers-reduced-motion:reduce){html[data-go] main{animation:none}::view-transition-old(root){animation:none}}
 `;
 
 export function layout(title: string, body: string, active = "", description = "TechWomenAZ mentorship: matched by coursework, kept going with a flame for every pair."): string {
@@ -204,8 +278,9 @@ export function layout(title: string, body: string, active = "", description = "
 <link rel="icon" href="${FAVICON}">
 <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;700&display=swap" rel="stylesheet">
+<script>try{var t=localStorage.getItem('theme');if(!t)t=matchMedia('(prefers-color-scheme: dark)').matches?'dark':'light';document.documentElement.dataset.theme=t;var g=sessionStorage.getItem('go');if(g){document.documentElement.dataset.go=g;sessionStorage.removeItem('go')}}catch(e){}</script>
 <style>${CSS}</style></head><body>
-<nav aria-label="Main"><a class="brand" href="/"><span class="ico">🔥</span> <span class="word">TechWomen<span class="accent">AZ</span></span></a>${link("/", "Home")}${link("/start", "Get matched")}${link("/opportunities", "Opportunities")}${link("/campfire", "Campfire")}</nav>
+<nav aria-label="Main"><a class="brand" href="/"><span class="ico">🔥</span> <span class="word">TechWomen<span class="accent">AZ</span></span></a>${link("/", "Home")}${link("/start", "Get matched")}${link("/opportunities", "Opportunities")}${link("/campfire", "Campfire")}<button class="theme-btn" type="button" aria-label="Switch light or dark mode" onclick="toggleTheme()"><svg class="sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></svg><svg class="moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z"/></svg></button></nav>
 <main>${body}</main>
 <div class="toast" id="toast" role="status" aria-live="polite"></div>
 <footer>TechWomenAZ mentorship · built by team fortfein at FireBytes 2026 · people and postings shown are demo data</footer>
@@ -225,6 +300,18 @@ export function layout(title: string, body: string, active = "", description = "
   // Score rings animate from 0
   document.querySelectorAll('.ring[data-p]').forEach(function(r){var to=+r.dataset.p,t0=null;function st(t){if(!t0)t0=t;var k=Math.min(1,(t-t0)/1100),e=1-Math.pow(1-k,3);r.style.setProperty('--p',(to*e).toFixed(1));r.querySelector('b').textContent=Math.round(to*e)+'%';if(k<1)requestAnimationFrame(st)}requestAnimationFrame(st);});
 })();
+function toggleTheme(){var h=document.documentElement;h.classList.add('theme-anim');h.dataset.theme=h.dataset.theme==='dark'?'light':'dark';try{localStorage.setItem('theme',h.dataset.theme)}catch(e){}setTimeout(function(){h.classList.remove('theme-anim')},400)}
+// Each destination gets its own arrival animation, set by the link or form that leads there.
+function goFor(href){try{var u=new URL(href,location.href);if(u.origin!==location.origin)return null;var p=u.pathname;
+  if(p==='/start'||p==='/join'||p==='/choose')return 'ignite';if(p.indexOf('/campfire')===0||p==='/admin/reset')return 'rise';if(p.indexOf('/pair')===0||p.indexOf('/mentor')===0)return 'zoom';if(p==='/')return 'back';return 'slide'}catch(e){return null}}
+document.addEventListener('click',function(e){var a=e.target.closest&&e.target.closest('a[href]');if(!a||a.target==='_blank'||e.metaKey||e.ctrlKey)return;var g=a.dataset.go||goFor(a.href);if(g)try{sessionStorage.setItem('go',g)}catch(_){}});
+document.addEventListener('submit',function(e){var f=e.target;var g=f.dataset.go||goFor(f.action||location.href);if(g)try{sessionStorage.setItem('go',g)}catch(_){}});
+// Poke a flame: it flares and throws sparks.
+document.addEventListener('click',function(e){var w=e.target.closest&&e.target.closest('.flame-wrap');if(!w)return;if(w.closest('a'))e.preventDefault();
+  w.classList.remove('flare');void w.offsetWidth;w.classList.add('flare');
+  if(matchMedia('(prefers-reduced-motion: reduce)').matches)return;var r=w.querySelector('.flame').getBoundingClientRect();
+  for(var i=0;i<14;i++){(function(){var s=document.createElement('span');s.className='spark';var x=r.left+r.width/2,y=r.top+r.height*.4;s.style.left=x+'px';s.style.top=y+'px';document.body.appendChild(s);
+    var ang=-Math.PI/2+(Math.random()-.5)*2.2,d=40+Math.random()*90;s.animate([{transform:'translate(0,0) scale(1)',opacity:1},{transform:'translate('+Math.cos(ang)*d+'px,'+Math.sin(ang)*d+'px) scale(.2)',opacity:0}],{duration:700+Math.random()*500,easing:'cubic-bezier(.22,1,.36,1)'}).onfinish=function(){s.remove()}})()}});
 function toast(msg){var t=document.getElementById('toast');t.textContent=msg;t.style.display='block';clearTimeout(window.__tt);window.__tt=setTimeout(function(){t.style.display='none'},4500)}
 </script>
 </body></html>`;
