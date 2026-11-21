@@ -160,6 +160,15 @@ main,footer{position:relative;z-index:1}
 @keyframes twinkle{from{opacity:.4}to{opacity:1}}
 @keyframes grow{from{transform:scaleX(0);transform-origin:left}to{transform:scaleX(1);transform-origin:left}}
 @media (prefers-reduced-motion:reduce){*,*::before,*::after{animation:none!important;transition:none!important}.reveal{opacity:1;transform:none}.embers{display:none}}
+/* taste-skill ideas: hero enters once, buttons press, underlines draw */
+.hero .inner>*{opacity:0;transform:translateY(16px);animation:enter .8s cubic-bezier(.2,.8,.2,1) forwards}
+.hero .inner>*:nth-child(2){animation-delay:.12s}.hero .inner>*:nth-child(3){animation-delay:.24s}.hero .inner>*:nth-child(4){animation-delay:.36s}
+.hero .bigflame{opacity:0;animation:enter 1.1s .45s cubic-bezier(.2,.8,.2,1) forwards}
+.btn:active{transform:translateY(0) scale(.97)}
+nav a:not(.brand){border-bottom:0!important;background:linear-gradient(var(--gold),var(--gold)) no-repeat left bottom/0 2px;transition:background-size .3s}
+nav a:not(.brand):hover,nav a[aria-current]{background-size:100% 2px}
+@keyframes enter{to{opacity:1;transform:none}}
+@media (prefers-reduced-motion:reduce){.hero .inner>*,.hero .bigflame{opacity:1!important;transform:none!important}}
 `;
 
 export function layout(title: string, body: string, active = "", description = "Ember: mentorships that don't fizzle out. Built for TechWomenAZ."): string {
