@@ -1,6 +1,6 @@
 # 🔥 TechWomenAZ Mentorship: mentorships that don't fizzle out
 
-Built for **TechWomenAZ** at the FireBytes Hackathon 2026 · **Team fortfein:** Bhuvan Potlapalli, Shaurya, Aadi, sventy77s
+Built for **TechWomenAZ** at the FireBytes Hackathon 2026 · **Team fortfein:** Bhuvan Potlapalli, Shaurya, Harshal
 
 **Live app:** https://fortfein.firebytehack.workers.dev · **Video:** https://youtu.be/kKXrDRqgC58
 
