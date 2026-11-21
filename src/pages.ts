@@ -56,7 +56,9 @@ export async function home(env: Env): Promise<Response> {
   // One pair from each part of the range, so the preview shows every flame state.
   const live = [0, 0.3, 0.6, 1].map((k) => all[Math.round(k * (all.length - 1))]).filter((v, i, arr) => v && arr.indexOf(v) === i);
   const body = `
-<section class="hero">
+<div class="deck" id="deck" aria-roledescription="slideshow" aria-label="How TechWomenAZ mentoring works">
+<div class="wipe" aria-hidden="true"></div>
+<div class="slide cur" data-name="Start" aria-roledescription="slide"><section class="hero">
   <svg class="land" viewBox="0 0 1200 300" preserveAspectRatio="none" aria-hidden="true">
     <path d="M0 170 L120 120 L210 150 L320 80 L430 140 L520 110 L640 160 L760 90 L880 150 L990 100 L1100 140 L1200 115 L1200 300 L0 300Z" fill="#5a2a4a" opacity=".55"/>
     <path d="M0 230 L150 195 L300 222 L470 185 L620 225 L800 190 L960 222 L1200 195 L1200 300 L0 300Z" fill="#2c1638"/>
@@ -67,7 +69,7 @@ export async function home(env: Env): Promise<Response> {
     <div class="row" style="margin-top:1.4rem">
       <a class="btn" href="/start">Get matched in 2 minutes</a>
       <a class="btn light" href="/start">Become a mentor</a>
-      <a class="btn ghost" style="color:#fff;border-color:rgba(255,255,255,.6)" href="/opportunities/new">Post an opportunity</a>
+      <button type="button" class="btn ghost" style="color:#fff;border-color:rgba(255,255,255,.6)" onclick="deckGo(1)">See how it works &#8594;</button>
     </div>
   </div>
   <div class="shot">
@@ -80,10 +82,9 @@ export async function home(env: Env): Promise<Response> {
         .join("")}</div>
     </a>
   </div>
-</section>
-<div class="scrollcue" aria-hidden="true"><span></span></div>
+</section></div>
 
-<section class="scene s-match" aria-label="Match">
+<div class="slide" data-name="Match" aria-roledescription="slide"><section class="scene s-match" aria-label="Match">
   <h2 class="big">Match</h2>
   <p class="line">Someone who took your classes.</p>
   <div class="matchbox" aria-hidden="true">
@@ -91,16 +92,17 @@ export async function home(env: Env): Promise<Response> {
     <div class="links"><div class="pct">85%</div><span>User Research</span><span>HCI</span></div>
     <div class="pcard right"><i class="av av2">D</i><b>Dana</b><small>UX Designer</small></div>
   </div>
-</section>
+</section></div>
 
-<section class="scene s-meet" aria-label="Meet">
+<div class="slide" data-name="Meet" aria-roledescription="slide"><section class="scene s-meet" aria-label="Meet">
   <h2 class="big">Meet</h2>
-  <p class="line">Every meeting feeds the fire. Scroll to light it.</p>
+  <p class="line">Every meeting feeds the fire. Tap it.</p>
   <div class="bigfire" id="scrollFire">${flameHtml({ heat: 10, status: "Flickering", daysQuiet: 0, streak: 0 }, 240)}</div>
   <div class="heatread"><b id="heatNum2">10</b><span>heat</span></div>
-</section>
+  <button type="button" class="btn small ghost feed" id="feed">Log a meeting +15</button>
+</section></div>
 
-<section class="scene s-launch" aria-label="Launch">
+<div class="slide" data-name="Launch" aria-roledescription="slide"><section class="scene s-launch" aria-label="Launch">
   <h2 class="big">Launch</h2>
   <p class="line">Openings that fit your classes.</p>
   <div class="fan" aria-hidden="true">
@@ -108,9 +110,9 @@ export async function home(env: Env): Promise<Response> {
     <div class="ocard"><small>Job</small><b>Junior SOC Analyst</b><em>90% fit</em></div>
     <div class="ocard"><small>Internship</small><b>Data Analyst Intern</b><em>100% fit</em></div>
   </div>
-</section>
+</section></div>
 
-<section class="scene s-go" aria-label="Get started">
+<div class="slide" data-name="Your turn" aria-roledescription="slide"><section class="scene s-go" aria-label="Get started">
   <h2 class="big">Your turn.</h2>
   <div class="row" style="justify-content:center;margin-top:1.2rem">
     <a class="btn xl" href="/start">Get matched</a>
@@ -121,18 +123,40 @@ export async function home(env: Env): Promise<Response> {
     .slice(0, 8)
     .map((m) => `<a href="/matches/${m.id}">${esc(m.name.split(" ")[0])}</a>`)
     .join(" · ")}</p>
-</section>
+</section></div>
+</div>
+<div class="deck-nav">
+  <button type="button" class="dn-btn" id="dPrev" aria-label="Previous slide">&#8592;</button>
+  <div class="dots" id="dots" role="tablist" aria-label="Slides"></div>
+  <button type="button" class="btn dn-next" id="dNext">Next</button>
+</div>
 <script>
 (function(){
-  var scenes=document.querySelectorAll('.scene');
-  if('IntersectionObserver' in window){var io=new IntersectionObserver(function(es){es.forEach(function(e){if(e.isIntersecting)e.target.classList.add('on')})},{threshold:.35});scenes.forEach(function(s){io.observe(s)})}
-  else scenes.forEach(function(s){s.classList.add('on')});
-  // Scroll-driven fire: heat follows how far the Meet scene has scrolled through the viewport.
-  var sec=document.querySelector('.s-meet'),f=document.querySelector('#scrollFire .flame'),num=document.getElementById('heatNum2'),tick=false;
-  function upd(){tick=false;var r=sec.getBoundingClientRect(),vh=innerHeight;var k=Math.max(0,Math.min(1,(vh-r.top)/(vh+r.height*.4)));
-    var heat=Math.round(10+90*k),size=Math.round(240*(.28+.72*heat/100));f.style.setProperty('--s',size+'px');f.style.transition='none';
-    f.className='flame '+(heat>=70?'Blazing':heat>=40?'Glowing':heat>=15?'Flickering':'Embers');num.textContent=heat;}
-  addEventListener('scroll',function(){if(!tick){tick=true;requestAnimationFrame(upd)}},{passive:true});upd();
+  var deck=document.getElementById('deck'),slides=[].slice.call(deck.querySelectorAll('.slide')),wipe=deck.querySelector('.wipe'),
+      dots=document.getElementById('dots'),prev=document.getElementById('dPrev'),next=document.getElementById('dNext'),i=0,busy=false;
+  var still=matchMedia('(prefers-reduced-motion: reduce)').matches;
+  slides.forEach(function(s,k){var d=document.createElement('button');d.type='button';d.className='dot';d.setAttribute('role','tab');d.setAttribute('aria-label',s.dataset.name);d.innerHTML='<i></i><span>'+s.dataset.name+'</span>';d.onclick=function(){go(k)};dots.appendChild(d)});
+  var heat=10,f=document.querySelector('#scrollFire .flame'),num=document.getElementById('heatNum2'),raf;
+  function setHeat(h){heat=Math.max(0,Math.min(100,Math.round(h)));f.style.setProperty('--s',Math.round(240*(.28+.72*heat/100))+'px');f.className='flame '+(heat>=70?'Blazing':heat>=40?'Glowing':heat>=15?'Flickering':'Embers');num.textContent=heat}
+  function rampTo(t){cancelAnimationFrame(raf);var s=heat,t0=performance.now();(function step(now){var k=Math.min(1,(now-t0)/1400);k=1-Math.pow(1-k,3);setHeat(s+(t-s)*k);if(k<1)raf=requestAnimationFrame(step)})(t0)}
+  document.getElementById('feed').onclick=function(){rampTo(Math.min(100,heat+15));f.click()};
+  function paint(){slides.forEach(function(s,k){s.classList.toggle('cur',k===i);s.setAttribute('aria-hidden',k===i?'false':'true');s.inert=k!==i;var sc=s.querySelector('.scene');if(sc)sc.classList.toggle('on',k===i)});
+    [].forEach.call(dots.children,function(d,k){d.classList.toggle('on',k===i);d.classList.toggle('seen',k<i);d.setAttribute('aria-selected',k===i)});
+    prev.disabled=i===0;var last=i===slides.length-1;next.textContent=last?'Start over':'Next: '+slides[i+1].dataset.name+' →';
+    deck.style.setProperty('--prog',(i/(slides.length-1)*100)+'%');
+    if(slides[i].querySelector('.s-meet')){setHeat(10);setTimeout(function(){rampTo(55)},500)}}
+  function go(n){if(busy||n===i||n<0||n>=slides.length)return;var dir=n>i?1:-1;busy=true;
+    deck.dataset.dir=dir>0?'fwd':'back';slides[i].classList.add('leaving');var old=i;
+    if(!still){wipe.classList.remove('run');void wipe.offsetWidth;wipe.classList.add('run')}
+    setTimeout(function(){slides[old].classList.remove('leaving');i=n;paint();slides[i].scrollTop=0;try{history.replaceState(null,'','#'+slides[i].dataset.name.toLowerCase().replace(/ /g,'-'))}catch(e){}},still?0:320);
+    setTimeout(function(){busy=false},still?50:760)}
+  window.deckGo=go;
+  prev.onclick=function(){go(i-1)};next.onclick=function(){go(i===slides.length-1?0:i+1)};
+  addEventListener('keydown',function(e){if(e.target.closest('input,textarea,select'))return;if(e.key==='ArrowRight'||e.key==='PageDown'){e.preventDefault();go(i+1)}else if(e.key==='ArrowLeft'||e.key==='PageUp'){e.preventDefault();go(i-1)}});
+  var x0=null,y0=0;deck.addEventListener('touchstart',function(e){x0=e.touches[0].clientX;y0=e.touches[0].clientY},{passive:true});
+  deck.addEventListener('touchend',function(e){if(x0===null)return;var dx=e.changedTouches[0].clientX-x0,dy=e.changedTouches[0].clientY-y0;if(Math.abs(dx)>50&&Math.abs(dx)>Math.abs(dy)*1.3)go(i+(dx<0?1:-1));x0=null});
+  var h=location.hash.slice(1),start=slides.findIndex(function(s){return s.dataset.name.toLowerCase().replace(/ /g,'-')===h});
+  if(start>0)i=start;paint();
 })();
 </script>`;
   return html(layout("Home", body, "/"));

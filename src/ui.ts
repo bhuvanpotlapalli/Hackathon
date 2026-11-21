@@ -199,7 +199,7 @@ input.hm-range{flex:1;-webkit-appearance:none;appearance:none;height:10px!import
 @keyframes breathe{0%,100%{transform:scale(1)}50%{transform:scale(1.06)}}
 .course-row{display:flex;justify-content:space-between;align-items:center;gap:.6rem;padding:.5rem 0;border-bottom:1px dashed var(--line)}
 .course-row:last-child{border-bottom:0}
-@media (max-width:480px){nav{gap:.55rem;padding:.55rem .7rem;flex-wrap:nowrap}nav a{font-size:.85rem;white-space:nowrap}.brand{font-size:1.02rem}nav a[href="/"]:not(.brand){display:none}nav a span.l{display:none}nav a span.s{display:inline}.theme-btn{width:34px;height:34px;flex:none}}
+@media (max-width:480px){nav{gap:.55rem;padding:.55rem .7rem;flex-wrap:nowrap}nav a{font-size:.85rem;white-space:nowrap}.brand{font-size:1.02rem;gap:.3rem}.brand .logo{width:24px;height:24px}nav{gap:.45rem!important}nav a[href="/"]:not(.brand){display:none}nav a span.l{display:none}nav a span.s{display:inline}.theme-btn{width:34px;height:34px;flex:none}}
 @media (prefers-reduced-motion:reduce){*,*::before,*::after{animation:none!important;transition:none!important}[data-split] .w>span,.hero .inner>p,.hero .inner>.row,.hero .shot{transform:none!important;opacity:1!important}}
 /* How-it-works flow: one connected line, each step a link */
 .flow{display:grid;grid-template-columns:repeat(4,1fr);gap:0;margin:1.5rem 0 1.25rem;position:relative}
@@ -265,6 +265,38 @@ html[data-theme=dark] .s-launch .big{color:#cdb5f0}
 .btn.xl{padding:1rem 1.7rem;font-size:1.15rem;border-radius:14px}
 .demo-names{margin-top:1.5rem;font-size:.92rem}
 @media (prefers-reduced-motion:reduce){.big,.scene .line,.pcard,.links span,.pct,.ocard{opacity:1!important;transform:none!important;filter:none!important}}
+/* ---------- Home slideshow ---------- */
+.deck{position:relative;height:max(560px,calc(100svh - 190px));overflow:hidden;border-radius:24px;isolation:isolate}
+.deck::before{content:"";position:absolute;left:0;top:0;height:3px;width:var(--prog,0%);background:linear-gradient(90deg,var(--ember),var(--gold));z-index:6;transition:width .7s var(--ease-enter)}
+.slide{position:absolute;inset:0;overflow-y:auto;overflow-x:hidden;visibility:hidden;opacity:0;transform:translateX(70px) scale(.94) rotate(.6deg);filter:blur(8px);transition:opacity .5s var(--ease-enter),transform .7s var(--ease-enter),filter .5s,visibility 0s .7s}
+.deck[data-dir=back] .slide:not(.cur){transform:translateX(-70px) scale(.94) rotate(-.6deg)}
+.slide.cur{visibility:visible;opacity:1;transform:none;filter:none;transition:opacity .55s var(--ease-enter) .05s,transform .75s var(--ease-enter),filter .55s,visibility 0s}
+.slide.leaving{opacity:0;transform:translateX(-90px) scale(.9) rotate(-1deg);filter:blur(10px)}
+.deck[data-dir=back] .slide.leaving{transform:translateX(90px) scale(.9) rotate(1deg)}
+.slide .hero{margin:0;min-height:100%}
+.slide .scene{min-height:100%;padding:2rem 1rem}
+.wipe{position:absolute;inset:0;z-index:5;pointer-events:none;background:linear-gradient(100deg,transparent 0,var(--ember) 30%,var(--gold) 50%,var(--ember) 70%,transparent 100%);transform:translateX(-110%) skewX(-12deg);opacity:0}
+.wipe.run{animation:wipe .75s cubic-bezier(.7,0,.3,1)}
+.deck[data-dir=back] .wipe.run{animation-name:wipeBack}
+@keyframes wipe{from{transform:translateX(-110%) skewX(-12deg);opacity:.9}to{transform:translateX(110%) skewX(-12deg);opacity:.9}}
+@keyframes wipeBack{from{transform:translateX(110%) skewX(-12deg);opacity:.9}to{transform:translateX(-110%) skewX(-12deg);opacity:.9}}
+.slide.cur .big{animation:bigIn .8s cubic-bezier(.34,1.56,.64,1) .2s both}
+@keyframes bigIn{from{opacity:0;transform:translateY(40px) scale(.7);letter-spacing:.2em}to{opacity:1;transform:none}}
+.deck-nav{display:flex;align-items:center;justify-content:space-between;gap:.8rem;margin:1rem 0 0}
+.dn-btn{width:48px;height:48px;border-radius:50%;border:1.5px solid var(--line);background:var(--card,#fff);color:var(--ink);font-size:1.3rem;cursor:pointer;transition:transform .15s,opacity .2s}
+.dn-btn:hover:not(:disabled){transform:translateX(-3px)}.dn-btn:disabled{opacity:.3;cursor:default}
+.dn-next{min-width:11rem;animation:nudge 2.4s ease-in-out 2s infinite}
+@keyframes nudge{0%,80%,100%{transform:none}88%{transform:translateX(5px)}94%{transform:translateX(-2px)}}
+.dots{display:flex;gap:.35rem;flex-wrap:wrap;justify-content:center}
+.dot{display:flex;align-items:center;gap:.4rem;border:0;background:none;color:var(--muted);font:600 .82rem system-ui;cursor:pointer;padding:.4rem .5rem;border-radius:99px;transition:background-color .2s,color .2s}
+.dot i{width:10px;height:10px;border-radius:50%;background:var(--line);transition:transform .35s cubic-bezier(.34,1.56,.64,1),background-color .3s,width .35s}
+.dot.seen i{background:var(--gold)}
+.dot.on{color:var(--ink);background:rgba(255,107,53,.1)}.dot.on i{background:var(--ember);width:22px;border-radius:6px}
+.dot:hover i{transform:scale(1.3)}
+.feed{margin-top:1rem}
+@media (max-width:640px){.dot span{display:none}.dn-next{min-width:0;flex:1;max-width:14rem}.deck{height:calc(100svh - 170px);min-height:520px}}
+@media (prefers-reduced-motion:reduce){.slide,.slide.cur,.slide.leaving{transform:none!important;filter:none!important}.wipe{display:none}}
+
 
 /* ================= Theme: light / dark (toggle in nav, remembers choice) ================= */
 ::selection{background:rgba(255,107,53,.28)}
@@ -353,8 +385,8 @@ export function layout(title: string, body: string, active = "", description = "
   // Split text: wrap each word of [data-split] so it rises once on load (text stays in the HTML)
   document.querySelectorAll('[data-split]').forEach(function(h){var i=0;
     (function walk(node){Array.from(node.childNodes).forEach(function(n){
-      if(n.nodeType===3){var frag=document.createDocumentFragment();n.textContent.split(/(\s+)/).forEach(function(part){
-        if(!part)return;if(/^\s+$/.test(part)){frag.appendChild(document.createTextNode(part));return}
+      if(n.nodeType===3){var frag=document.createDocumentFragment();n.textContent.split(/(\\s+)/).forEach(function(part){
+        if(!part)return;if(/^\\s+$/.test(part)){frag.appendChild(document.createTextNode(part));return}
         var w=document.createElement('span');w.className='w';var inner=document.createElement('span');inner.textContent=part;inner.style.animationDelay=(i++*70)+'ms';w.appendChild(inner);frag.appendChild(w);});
         n.parentNode.replaceChild(frag,n);}
       else if(n.nodeType===1)walk(n);});})(h);});
