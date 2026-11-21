@@ -63,7 +63,7 @@ Local test without a login: `npx wrangler dev -c wrangler.mock.jsonc` then open 
 - No emoji in headings or buttons, no gradient text, no glow or shine sweeps, no scroll-in card reveals, no twinkling. Buttons step 1px up on hover and press on click; linked cards lift 2px. One hero entrance (split-text headline). The hero shows the real Campfire, not decoration.
 
 ## Rules
-- **JS wants every reply to end with a TODO list of what they should do next.**
+- **JS wants every reply short (a few lines, no rambling) and ending with a TODO list of what they should do next.**
 - Never push to `main` without JS's OK. Work on the `ember` branch, JS merges.
 - Run `npx tsc --noEmit` before every push.
 - Demo data is fictional; say so in the README.
