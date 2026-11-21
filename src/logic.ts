@@ -98,7 +98,7 @@ export const STATUS_LABEL: Record<Status, string> = {
 };
 
 const STOP = new Set(
-  "a an and the to of for in on at by with from into my me i want get land learn more about become my our your their this that job role career tech".split(
+  "a an and the to of for in on at by with from into my me i ii iii want get land learn more about become my our your their this that job role career tech intro introduction fundamentals basics principles methods computer science advanced applied".split(
     " ",
   ),
 );
