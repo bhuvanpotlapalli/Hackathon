@@ -190,7 +190,7 @@ a.card:hover{transform:translateY(-2px);border-color:#d6c6b5;box-shadow:0 10px 2
 @keyframes breathe{0%,100%{transform:scale(1)}50%{transform:scale(1.06)}}
 .course-row{display:flex;justify-content:space-between;align-items:center;gap:.6rem;padding:.5rem 0;border-bottom:1px dashed var(--line)}
 .course-row:last-child{border-bottom:0}
-@media (max-width:480px){nav{gap:.6rem;padding:.6rem .75rem}nav a{font-size:.88rem}.brand{font-size:1.1rem}}
+@media (max-width:480px){nav{gap:.55rem;padding:.55rem .7rem;flex-wrap:nowrap}nav a{font-size:.85rem;white-space:nowrap}.brand{font-size:1.02rem}nav a[href="/"]:not(.brand){display:none}nav a span.l{display:none}nav a span.s{display:inline}.theme-btn{width:34px;height:34px;flex:none}}
 @media (prefers-reduced-motion:reduce){*,*::before,*::after{animation:none!important;transition:none!important}[data-split] .w>span,.hero .inner>p,.hero .inner>.row,.hero .shot{transform:none!important;opacity:1!important}}
 /* How-it-works flow: one connected line, each step a link */
 .flow{display:grid;grid-template-columns:repeat(4,1fr);gap:0;margin:1.5rem 0 1.25rem;position:relative}
@@ -201,6 +201,61 @@ a.card:hover{transform:translateY(-2px);border-color:#d6c6b5;box-shadow:0 10px 2
 .step b{display:block;font:700 1.25rem "Space Grotesk",sans-serif}
 .step span{color:var(--muted);font-size:.92rem}
 @media (max-width:640px){.flow{grid-template-columns:1fr 1fr;row-gap:1rem}.flow::before{display:none}}
+
+
+nav .s{display:none}
+/* ================= Home journey: scenes that unbox as you scroll ================= */
+.scrollcue{display:flex;justify-content:center;margin:1.2rem 0 0}
+.scrollcue span{width:24px;height:38px;border:2px solid var(--muted);border-radius:14px;position:relative;opacity:.7}
+.scrollcue span::after{content:"";position:absolute;left:50%;top:7px;width:4px;height:8px;margin-left:-2px;border-radius:2px;background:var(--ember);animation:cue 1.6s ease-in-out infinite}
+@keyframes cue{0%{opacity:0;transform:translateY(0)}40%{opacity:1}100%{opacity:0;transform:translateY(12px)}}
+.scene{overflow-x:clip;min-height:86vh;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;padding:3rem 0;position:relative}
+.big{font-size:clamp(3.4rem,13vw,9rem);line-height:.9;letter-spacing:-.045em;margin:0;opacity:0;transform:translateY(60px) scale(.96);filter:blur(10px);transition:all .9s var(--ease-enter)}
+.scene .line{font-size:clamp(1.05rem,2.4vw,1.35rem);color:var(--muted);margin:.8rem 0 2rem;opacity:0;transform:translateY(20px);transition:all .8s var(--ease-enter) .15s}
+.scene.on .big,.scene.on .line{opacity:1;transform:none;filter:none}
+.s-match .big{color:var(--ember)}.s-meet .big{color:var(--gold)}.s-launch .big{color:var(--plum)}
+html[data-theme=dark] .s-launch .big{color:#cdb5f0}
+
+/* Match: two cards slide together, shared classes snap into the middle */
+.matchbox{position:relative;display:grid;grid-template-columns:1fr auto 1fr;align-items:center;gap:1rem;width:min(720px,100%)}
+.pcard{background:var(--card);border:1px solid var(--line);border-radius:18px;padding:1.2rem;display:flex;flex-direction:column;align-items:center;gap:.2rem;box-shadow:0 12px 30px rgba(31,23,41,.08);opacity:0;transition:transform 1s var(--ease-enter) .2s,opacity .6s .2s}
+.pcard.left{transform:translateX(-120px) rotate(-6deg)}.pcard.right{transform:translateX(120px) rotate(6deg)}
+.scene.on .pcard{opacity:1;transform:none}
+.av{width:56px;height:56px;border-radius:50%;display:grid;place-items:center;font:700 1.4rem "Space Grotesk";font-style:normal;color:#fff;background:var(--ember)}
+.av2{background:var(--plum)}
+.pcard small{color:var(--muted)}
+.links{display:flex;flex-direction:column;gap:.5rem}
+.links span{background:var(--gold);color:#2b1a3d;font-weight:700;font-size:.85rem;padding:.35rem .7rem;border-radius:999px;opacity:0;transform:scale(.3);transition:all .6s var(--ease-enter) .9s}
+.links span:nth-child(2){transition-delay:1.05s}
+.scene.on .links span{opacity:1;transform:none}
+.pct{transform:scale(.2);opacity:0;font:700 2.4rem "Space Grotesk";color:var(--ember);transition:all .7s cubic-bezier(.34,1.56,.64,1) 1.3s;line-height:1}
+.scene.on .pct{opacity:1;transform:none}
+@media (max-width:600px){.matchbox{grid-template-columns:1fr 1fr;gap:.6rem}.links{grid-column:1/-1;grid-row:2;flex-direction:row;justify-content:center;align-items:center}.pct{font-size:1.8rem}}
+
+/* Meet: the scroll-driven fire */
+.bigfire .flame-wrap{--max:240px;height:270px}
+.bigfire .flame{transition:none}
+.heatread{display:flex;align-items:baseline;gap:.4rem;margin-top:.6rem}
+.heatread b{font:700 3rem "Space Grotesk";color:var(--ember);font-variant-numeric:tabular-nums;min-width:3ch}
+.heatread span{color:var(--muted)}
+
+/* Launch: offer cards fan out */
+.fan{position:relative;height:230px;width:min(560px,100%)}
+.ocard{position:absolute;left:50%;top:10px;width:220px;margin-left:-110px;background:var(--card);border:1px solid var(--line);border-radius:16px;padding:1rem 1.1rem;text-align:left;box-shadow:0 18px 40px rgba(31,23,41,.12);display:flex;flex-direction:column;gap:.2rem;transition:transform 1s var(--ease-enter),opacity .5s;opacity:0;transform:translateY(60px)}
+.ocard small{color:var(--muted);text-transform:uppercase;letter-spacing:.06em;font-size:.72rem;font-weight:700}
+.ocard b{font-family:"Space Grotesk";font-size:1.1rem}
+.ocard em{font-style:normal;font-weight:700;color:var(--sage)}
+.scene.on .ocard{opacity:1}
+.scene.on .ocard:nth-child(1){transform:translateX(-235px) translateY(20px) rotate(-9deg);transition-delay:.25s}
+.scene.on .ocard:nth-child(2){transform:translateY(-8px);z-index:2;transition-delay:.4s}
+.scene.on .ocard:nth-child(3){transform:translateX(235px) translateY(20px) rotate(9deg);transition-delay:.55s}
+.scene.on .ocard:hover{transform:translateY(-18px) scale(1.04);z-index:3}
+@media (max-width:600px){.scene.on .ocard:nth-child(1){transform:translateX(-80px) rotate(-10deg)}.scene.on .ocard:nth-child(3){transform:translateX(80px) rotate(10deg)}.ocard{width:180px;margin-left:-90px}}
+
+/* Final call */
+.btn.xl{padding:1rem 1.7rem;font-size:1.15rem;border-radius:14px}
+.demo-names{margin-top:1.5rem;font-size:.92rem}
+@media (prefers-reduced-motion:reduce){.big,.scene .line,.pcard,.links span,.pct,.ocard{opacity:1!important;transform:none!important;filter:none!important}}
 
 /* ================= Theme: light / dark (toggle in nav, remembers choice) ================= */
 ::selection{background:rgba(255,107,53,.28)}
@@ -280,7 +335,7 @@ export function layout(title: string, body: string, active = "", description = "
 <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;700&display=swap" rel="stylesheet">
 <script>try{var t=localStorage.getItem('theme');if(!t)t=matchMedia('(prefers-color-scheme: dark)').matches?'dark':'light';document.documentElement.dataset.theme=t;var g=sessionStorage.getItem('go');if(g){document.documentElement.dataset.go=g;sessionStorage.removeItem('go')}}catch(e){}</script>
 <style>${CSS}</style></head><body>
-<nav aria-label="Main"><a class="brand" href="/"><span class="ico">🔥</span> <span class="word">TechWomen<span class="accent">AZ</span></span></a>${link("/", "Home")}${link("/start", "Get matched")}${link("/opportunities", "Opportunities")}${link("/campfire", "Campfire")}<button class="theme-btn" type="button" aria-label="Switch light or dark mode" onclick="toggleTheme()"><svg class="sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></svg><svg class="moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z"/></svg></button></nav>
+<nav aria-label="Main"><a class="brand" href="/"><span class="ico">🔥</span> <span class="word">TechWomen<span class="accent">AZ</span></span></a>${link("/", "Home")}${link("/start", '<span class="l">Get matched</span><span class="s">Match</span>')}${link("/opportunities", '<span class="l">Opportunities</span><span class="s">Jobs</span>')}${link("/campfire", "Campfire")}<button class="theme-btn" type="button" aria-label="Switch light or dark mode" onclick="toggleTheme()"><svg class="sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></svg><svg class="moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z"/></svg></button></nav>
 <main>${body}</main>
 <div class="toast" id="toast" role="status" aria-live="polite"></div>
 <footer>TechWomenAZ mentorship · built by team fortfein at FireBytes 2026 · people and postings shown are demo data</footer>

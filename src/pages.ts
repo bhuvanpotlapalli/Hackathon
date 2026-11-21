@@ -81,23 +81,60 @@ export async function home(env: Env): Promise<Response> {
     </a>
   </div>
 </section>
-<section class="flow" aria-label="How it works">
-  <a class="step" href="/start"><b>Match</b><span>Mentors who took your courses</span></a>
-  <a class="step" href="/matches/19"><b>Plan</b><span>A goal and three milestones</span></a>
-  <a class="step" href="/pair/1"><b>Meet</b><span>Each meeting grows the flame</span></a>
-  <a class="step" href="/opportunities"><b>Launch</b><span>Openings that fit your classes</span></a>
+<div class="scrollcue" aria-hidden="true"><span></span></div>
+
+<section class="scene s-match" aria-label="Match">
+  <h2 class="big">Match</h2>
+  <p class="line">Someone who took your classes.</p>
+  <div class="matchbox" aria-hidden="true">
+    <div class="pcard left"><i class="av">E</i><b>Elena</b><small>Career changer</small></div>
+    <div class="links"><div class="pct">85%</div><span>User Research</span><span>HCI</span></div>
+    <div class="pcard right"><i class="av av2">D</i><b>Dana</b><small>UX Designer</small></div>
+  </div>
 </section>
-<div class="card" style="margin-top:1.25rem">
-  <h3>Try it as a demo mentee</h3>
-  <div class="row">${[...mentees]
+
+<section class="scene s-meet" aria-label="Meet">
+  <h2 class="big">Meet</h2>
+  <p class="line">Every meeting feeds the fire. Scroll to light it.</p>
+  <div class="bigfire" id="scrollFire">${flameHtml({ heat: 10, status: "Flickering", daysQuiet: 0, streak: 0 }, 240)}</div>
+  <div class="heatread"><b id="heatNum2">10</b><span>heat</span></div>
+</section>
+
+<section class="scene s-launch" aria-label="Launch">
+  <h2 class="big">Launch</h2>
+  <p class="line">Openings that fit your classes.</p>
+  <div class="fan" aria-hidden="true">
+    <div class="ocard"><small>Internship</small><b>UX Design Intern</b><em>80% fit</em></div>
+    <div class="ocard"><small>Job</small><b>Junior SOC Analyst</b><em>90% fit</em></div>
+    <div class="ocard"><small>Internship</small><b>Data Analyst Intern</b><em>100% fit</em></div>
+  </div>
+</section>
+
+<section class="scene s-go" aria-label="Get started">
+  <h2 class="big">Your turn.</h2>
+  <div class="row" style="justify-content:center;margin-top:1.2rem">
+    <a class="btn xl" href="/start">Get matched</a>
+    <a class="btn ghost xl" href="/matches/19">Try the demo</a>
+  </div>
+  <p class="muted demo-names">Demo mentees: ${[...mentees]
     .sort((a, b) => (a.name.startsWith("Elena") ? -1 : b.name.startsWith("Elena") ? 1 : 0))
-    .map((m) =>
-      m.name.startsWith("Elena")
-        ? `<a class="btn small" href="/matches/${m.id}">Start here: ${esc(m.name)} (new mentee)</a>`
-        : `<a class="chip plum" href="/matches/${m.id}">${esc(m.name)}</a>`,
-    )
-    .join("")}</div>
-</div>`;
+    .slice(0, 8)
+    .map((m) => `<a href="/matches/${m.id}">${esc(m.name.split(" ")[0])}</a>`)
+    .join(" · ")}</p>
+</section>
+<script>
+(function(){
+  var scenes=document.querySelectorAll('.scene');
+  if('IntersectionObserver' in window){var io=new IntersectionObserver(function(es){es.forEach(function(e){if(e.isIntersecting)e.target.classList.add('on')})},{threshold:.35});scenes.forEach(function(s){io.observe(s)})}
+  else scenes.forEach(function(s){s.classList.add('on')});
+  // Scroll-driven fire: heat follows how far the Meet scene has scrolled through the viewport.
+  var sec=document.querySelector('.s-meet'),f=document.querySelector('#scrollFire .flame'),num=document.getElementById('heatNum2'),tick=false;
+  function upd(){tick=false;var r=sec.getBoundingClientRect(),vh=innerHeight;var k=Math.max(0,Math.min(1,(vh-r.top)/(vh+r.height*.4)));
+    var heat=Math.round(10+90*k),size=Math.round(240*(.28+.72*heat/100));f.style.setProperty('--s',size+'px');f.style.transition='none';
+    f.className='flame '+(heat>=70?'Blazing':heat>=40?'Glowing':heat>=15?'Flickering':'Embers');num.textContent=heat;}
+  addEventListener('scroll',function(){if(!tick){tick=true;requestAnimationFrame(upd)}},{passive:true});upd();
+})();
+</script>`;
   return html(layout("Home", body, "/"));
 }
 
