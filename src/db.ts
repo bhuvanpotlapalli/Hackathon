@@ -1,5 +1,6 @@
 import { COURSE_SCHEMA, courseSeed } from "./courses";
 import { PERSONAL_SCHEMA, personalSeed } from "./personal";
+import { MEETINGS_SCHEMA, MESSAGES_SCHEMA, ORGS_SCHEMA, orgSeed, PROFILE_MIGRATIONS, meetingSeed, messageSeed } from "./social";
 // D1 schema, demo seed data, and every query Ember uses.
 // All queries use prepare(...).bind(...); user input is never concatenated into SQL.
 
@@ -73,6 +74,9 @@ export const SCHEMA = [
   `CREATE INDEX IF NOT EXISTS idx_pairs_mentee ON pairs(mentee_id)`,
   COURSE_SCHEMA,
   PERSONAL_SCHEMA,
+  MESSAGES_SCHEMA,
+  MEETINGS_SCHEMA,
+  ORGS_SCHEMA,
 ];
 
 // ---------- Demo seed data (fictional people, labelled as demo data in the README) ----------
@@ -173,6 +177,25 @@ const FUN: Record<string, string> = {
   "Hannah Brooks": "Art and crafts, Travel", "Daniel Okoye": "Reading, Sports", "Maria Santos": "Gaming, Travel", "Ray Castillo": "Hiking, Gaming",
   "Tasha Greene": "Music, Cooking", "Nora Klein": "Reading, Travel", "Luis Romero": "Sports, Travel",
 };
+
+// Demo profile extras for the chemistry part of matching.
+const EXTRAS: Record<string, [string, string]> = {
+  "Dana Ruiz": ["Graphic designer for 6 years, then UX at a Scottsdale fintech", "Hiked every trail on Camelback, paints watercolor, has a rescue dog"],
+  "Hannah Brooks": ["Print designer, then product design at an ed-tech startup", "Bakes sourdough, collects vinyl, loves travel"],
+  "Priya Natarajan": ["Backend engineer for 7 years in health-tech", "Speedcuber, plays chess online, cooks South Indian food"],
+  "Marcus Bell": ["8 years Army signals, then SOC analyst", "Coaches youth soccer, plays chess, restores old radios"],
+  "Lena Okafor": ["Data scientist at a utility, former math tutor", "Runs half marathons, reads sci-fi, hikes"],
+  "Sofia Martinez": ["Product manager in SaaS, former teacher", "Salsa dancer, travels to a new country every year"],
+  "Kevin Tran": ["Chef for 10 years, then bootcamp and frontend dev", "Still cooks for friends, plays video games, has a cat"],
+  "Grace Whitfield": ["Mechanical engineer at an aerospace supplier, robotics club coach", "Builds robots, hikes, plays piano"],
+  "Ana Morales": ["Electrical engineer at a chip fab, first-gen college grad", "Speaks Spanish, plays guitar, loves travel"],
+  "Maya Chen": ["Campus design studio assistant", "Paints watercolor, plays guitar, has a dog"],
+  "Elena Vasquez": ["Graphic designer for 4 years at a print shop", "Hikes Camelback on weekends, paints watercolor"],
+  "Tyler Brooks": ["Retail store manager for 6 years", "Plays chess, coaches little league soccer"],
+  "Rosa Delgado": ["Registered nurse for 8 years", "Reads mysteries, cooks with her kids"],
+  "Jordan Lee": ["Campus IT help desk", "Plays video games, speedcuber"],
+  "Ben Carter": ["Barista and shift lead", "Cooks, plays guitar, loves music festivals"],
+};
 export function seedStatements(db: D1Database): D1PreparedStatement[] {
   const now = Date.now();
   const stmts: D1PreparedStatement[] = [];
@@ -186,6 +209,9 @@ export function seedStatements(db: D1Database): D1PreparedStatement[] {
       insertUser.bind(i + 1, u.name, u.role, u.career, u.no_degree, u.goal, u.headline, u.courses, u.school, u.availability, u.format, u.area, u.confidence, u.capacity, FUN[u.name] ?? "", iso(70, now)),
     );
   });
+
+  const upd = db.prepare(`UPDATE users SET experience = ?, fun_facts = ? WHERE name = ?`);
+  for (const [name, [exp, fun]] of Object.entries(EXTRAS)) stmts.push(upd.bind(exp, fun, name));
 
   PAIRS.forEach(([mi, ei, age, meetings, done], p) => {
     const pairId = p + 1;
@@ -228,12 +254,25 @@ export function ensureDb(db: D1Database): Promise<void> {
       await db.batch(SCHEMA.map((s) => db.prepare(s)));
       // Older databases: add the interests column if it's missing.
       await db.prepare(`ALTER TABLE users ADD COLUMN interests TEXT NOT NULL DEFAULT ''`).run().catch(() => {});
+      for (const m of PROFILE_MIGRATIONS) await db.prepare(m).run().catch(() => {});
       const row = await db.prepare(`SELECT COUNT(*) AS n FROM users`).first<{ n: number }>();
       if (!row || row.n === 0) await db.batch(seedStatements(db));
       const cc = await db.prepare(`SELECT COUNT(*) AS n FROM courses`).first<{ n: number }>();
       if (!cc || cc.n === 0) await db.batch(courseSeed(db));
       const pc = await db.prepare(`SELECT COUNT(*) AS n FROM personal_courses`).first<{ n: number }>();
       if (!pc || pc.n === 0) await personalSeed(db);
+      const mc = await db.prepare(`SELECT COUNT(*) AS n FROM messages`).first<{ n: number }>();
+      if (!mc || mc.n === 0) {
+        const ps = await db.prepare(`SELECT id, mentor_id AS mentor, mentee_id AS mentee FROM pairs ORDER BY id LIMIT 3`).all<{ id: number; mentor: number; mentee: number }>();
+        if (ps.results.length) await db.batch(messageSeed(db, ps.results));
+      }
+      const og = await db.prepare(`SELECT COUNT(*) AS n FROM orgs`).first<{ n: number }>();
+      if (!og || og.n === 0) await db.batch(orgSeed(db));
+      const mt = await db.prepare(`SELECT COUNT(*) AS n FROM meetings`).first<{ n: number }>();
+      if (!mt || mt.n === 0) {
+        const ps = await db.prepare(`SELECT id FROM pairs ORDER BY id LIMIT 3`).all<{ id: number }>();
+        if (ps.results.length) await db.batch(meetingSeed(db, ps.results.map((p) => p.id)));
+      }
     })().catch((e) => {
       ready = null; // retry on the next request
       throw e;
@@ -244,9 +283,17 @@ export function ensureDb(db: D1Database): Promise<void> {
 
 /** Wipes everything and reloads the demo data (admin "Reset demo" button). */
 export async function resetDb(db: D1Database): Promise<void> {
-  await db.batch(
-    ["DROP TABLE IF EXISTS personal_courses", "DROP TABLE IF EXISTS courses", "DROP TABLE IF EXISTS opportunities", "DROP TABLE IF EXISTS nudges", "DROP TABLE IF EXISTS checkins", "DROP TABLE IF EXISTS milestones", "DROP TABLE IF EXISTS pairs", "DROP TABLE IF EXISTS users"].map((s) => db.prepare(s)),
-  );
+  // Delete rows instead of dropping tables, in one atomic batch, so judges browsing
+  // during a reset never hit a missing table. Extras (chat, meetings…) reseed after.
+  await ensureDb(db);
+  const tables = ["orgs", "meetings", "messages", "personal_courses", "courses", "opportunities", "nudges", "checkins", "milestones", "pairs", "users"];
+  await db.batch([
+    ...tables.map((t) => db.prepare(`DELETE FROM ${t}`)),
+    db.prepare(`DELETE FROM sqlite_sequence WHERE name IN (${tables.map(() => "?").join(",")})`).bind(...tables),
+    ...seedStatements(db),
+    ...courseSeed(db),
+    ...orgSeed(db),
+  ]);
   ready = null;
   await ensureDb(db);
 }

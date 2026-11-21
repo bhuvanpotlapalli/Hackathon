@@ -1,3 +1,4 @@
+import * as social from "./social";
 import * as personal from "./personal";
 import * as courses from "./courses";
 // Ember: mentorships that don't fizzle out. Built for TechWomenAZ at FireBytes 2026.
@@ -43,6 +44,13 @@ export default {
         if ((r = m(/^\/matches\/(\d+)$/))) return pages.matches(env, +r[1], url);
         if ((r = m(/^\/pair\/(\d+)$/))) return pages.pairPage(env, +r[1], url);
         if (path === "/campfire") return pages.campfire(env, url);
+        if ((r = m(/^\/profile\/(\d+)$/))) return social.profilePage(env, +r[1], url);
+        if (path === "/orgs") return social.orgsPage(env, url);
+        if (path === "/orgs/new") return social.orgForm(url);
+        if (path === "/org") return social.orgByName(env, url);
+        if ((r = m(/^\/orgs\/(\d+)$/))) return social.orgPage(env, +r[1], url);
+        if ((r = m(/^\/pair\/(\d+)\/meetings\/(\d+)\.ics$/))) return social.meetingIcs(env, +r[1], +r[2]);
+        if ((r = m(/^\/api\/pair\/(\d+)\/messages$/))) return social.apiMessages(request, env, +r[1]);
         if (path === "/courses") return courses.coursesPage(env, url);
         if (path === "/courses/new") return courses.courseForm(env, url);
         if (path === "/courses/personal") return personal.personalPage(env, url);
@@ -50,12 +58,19 @@ export default {
         if ((r = m(/^\/courses\/(\d+)$/))) return courses.courseDetail(env, +r[1]);
         if ((r = m(/^\/api\/opp-courses\/(\d+)$/))) return courses.apiOppCourses(env, +r[1]);
         if (path === "/opportunities") return pages.opportunities(env, url);
-        if (path === "/opportunities/new") return pages.oppForm();
+        if (path === "/opportunities/new") return pages.oppForm(url);
         if ((r = m(/^\/opportunities\/(\d+)$/))) return pages.oppDetail(env, +r[1], url);
         if (path === "/api/why") return pages.apiWhy(env, url);
       }
 
       if (method === "POST") {
+        // Forms must arrive as form data; anything else goes back where it came from.
+        const ct = request.headers.get("content-type") ?? "";
+        if (!path.startsWith("/api/") && !path.startsWith("/admin/") && !/form/i.test(ct)) {
+          const ref = request.headers.get("referer");
+          const back = ref && new URL(ref).host === url.host ? new URL(ref).pathname : "/";
+          return new Response(null, { status: 303, headers: { location: back } });
+        }
         if (path === "/join") return pages.joinSubmit(request, env);
         if (path === "/choose") return pages.choose(request, env);
         if (path === "/api/chat/react") return chat.chatReact(request, env);
@@ -65,6 +80,11 @@ export default {
         if ((r = m(/^\/nudge\/(\d+)$/))) return pages.nudge(env, +r[1]);
         if (path === "/opportunities") return pages.oppSubmit(request, env);
         if (path === "/courses") return courses.courseSubmit(request, env);
+        if ((r = m(/^\/profile\/(\d+)$/))) return social.profileSubmit(request, env, +r[1]);
+        if (path === "/orgs") return social.orgSubmit(request, env);
+        if ((r = m(/^\/pair\/(\d+)\/meetings$/))) return social.meetingSubmit(request, env, +r[1]);
+        if ((r = m(/^\/pair\/(\d+)\/meetings\/(\d+)\/cancel$/))) return social.meetingCancel(env, +r[1], +r[2]);
+        if ((r = m(/^\/api\/pair\/(\d+)\/messages$/))) return social.apiMessages(request, env, +r[1]);
         if (path === "/courses/personal") return personal.personalSubmit(request, env);
         if ((r = m(/^\/api\/agenda\/(\d+)$/))) return pages.apiAgenda(env, +r[1]);
         if (path === "/api/rise") return pages.apiRise(env);

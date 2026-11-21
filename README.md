@@ -18,7 +18,10 @@ TechWomenAZ helps college students and adults (18+, not K-12) build careers in t
 5. **Opportunities board** (`/opportunities`). Employers and partners post internships, jobs and mentorship programs with the coursework they want. Each student's fit is scored by coursework coverage, mentees see the openings they fit, and posters see their best-fit students.
 6. **Courses** (`/courses`). Mentors share classes they teach or recommend, and employers add prep courses for their postings, each with filter tags. Students filter by path, level, cost, format and tags, or type their goal to see the best-fit courses first, then open a course, press **Start course**, tick off lessons (progress is saved) and save it to **My saved courses**. On every opportunity, **ember (Workers AI) reads what the posting wants and picks the courses that cover it**, with the employer's own prep courses shown first. **Personalized by ember:** a mentor picks a mentee and ember (Workers AI) writes a 4-step course for that person from their classes and goal, linked to library courses, with step checkboxes that track progress (the pair page links straight to it).
 7. **A fun question.** ember also asks what you're into off the clock (gaming, hiking, music…). Shared interests add up to 10 points to a match, as a tiebreaker after coursework.
-8. **Design.** The home page is a full-screen scroll story (Start → Why → Match → Meet → Learn → Launch → Join) with drifting embers, a glowing thread that connects every section as you scroll, and a fire that grows as you scroll through Meet. Light/dark toggle, page-to-page transitions tied to each button, clickable flames that throw sparks, and a phone-friendly layout.
+8. **Profiles, chat and meetings.** Everyone has a profile they can edit (bio, pronouns, work experience, fun facts, interests). Every pair has a chat and can schedule virtual (video link) or in-person meetings with an Add to calendar file. Fun facts and work background add up to 10 "chemistry" points to a match.
+9. **Organization profiles** (`/orgs`). Companies, nonprofits and schools get a profile listing their opportunities and courses; every posting links to its organization.
+10. **Admin** (`/campfire`): retention rate, churned pairs, new pairs, % of pairs meeting each week, and an 8-week chart. Reset demo shows at `/campfire?admin=1`.
+11. **Design.** The home page is a full-screen scroll story (Start → Why → Match → Meet → Learn → Launch → Join) with drifting embers, a glowing thread that connects every section as you scroll, and a fire that grows as you scroll through Meet. Light/dark toggle, page-to-page transitions tied to each button, clickable flames that throw sparks, and a phone-friendly layout.
 
 | Matches by shared coursework | Chat signup with ember | Campfire dashboard |
 |---|---|---|
@@ -33,7 +36,8 @@ TechWomenAZ helps college students and adults (18+, not K-12) build careers in t
 | Availability | 10 | | |
 | Format / area | 5 | | |
 | Mentor has open capacity | 10 | | |
-| Shared fun interests | up to 10 (total capped at 100) | | |
+| Shared fun interests | up to 10 | | |
+| Chemistry: fun facts + work background | up to 10 (total capped at 100) | | |
 
 ## Tech stack
 - **Cloudflare Workers** (TypeScript, no framework): server-rendered pages + JSON endpoints, one deploy.
@@ -47,6 +51,7 @@ TechWomenAZ helps college students and adults (18+, not K-12) build careers in t
 | `src/chat.ts` | ember chat signup |
 | `src/courses.ts` | Course library, filters, ember's course picks for opportunities |
 | `src/personal.ts` | Personalized courses built by ember for one mentee |
+| `src/social.ts` | Profiles, pair chat, meeting scheduling, organization profiles |
 | `src/pages.ts` | Pages, forms, JSON endpoints |
 | `src/db.ts` | Schema, demo seed data, queries (all parameterized) |
 | `src/logic.ts` | Flame, match and opportunity-fit formulas, curated course library |

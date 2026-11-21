@@ -3,6 +3,7 @@
 import * as ai from "./ai";
 import * as db from "./db";
 import { oppCoursesBlock } from "./courses";
+import { chatBlock, meetingsBlock } from "./social";
 import {
   AREAS,
   AVAILABILITY,
@@ -291,7 +292,7 @@ export async function mentorWelcome(env: Env, id: number): Promise<Response> {
     .sort((a, b) => b.r.score - a.r.score)
     .slice(0, 4);
   const body = `
-<div class="notice">Welcome, ${esc(u.name)}. You're on the mentor list with room for ${u.capacity} mentee${u.capacity > 1 ? "s" : ""}.</div>
+<div class="notice"><a style="float:right" href="/profile/${u.id}">Edit my profile</a>Welcome, ${esc(u.name)}. You're on the mentor list with room for ${u.capacity} mentee${u.capacity > 1 ? "s" : ""}.</div>
 <h1>Mentees who could use your experience</h1>
 <p class="muted">Based on the courses you listed: ${chips(u.courses.split(",").map((c) => c.trim()).filter(Boolean), "sage")}</p>
 <div class="grid">${
@@ -336,7 +337,7 @@ export async function matches(env: Env, menteeId: number, url: URL): Promise<Res
 
   const body = `
 ${url.searchParams.get("new") ? `<div class="notice">You're in, ${esc(mentee.name.split(" ")[0])}. ember found these mentors from your courses and goal.</div>` : ""}
-<div class="banner"><h1>${myPairs.length ? `Add another mentor, ${esc(mentee.name.split(" ")[0])}` : `Hi ${esc(mentee.name.split(" ")[0])}, here are your top matches`}</h1>
+<div class="banner"><a class="btn small ghost onDark" style="float:right;position:relative;z-index:1" href="/profile/${mentee.id}">My profile</a><h1>${myPairs.length ? `Add another mentor, ${esc(mentee.name.split(" ")[0])}` : `Hi ${esc(mentee.name.split(" ")[0])}, here are your top matches`}</h1>
 <p>Ranked by shared courses, goals and schedule. You pick.</p></div>
 <p>Your courses: ${chips(mentee.courses.split(",").map((c) => c.trim()).filter(Boolean), "sage")}</p>
 ${
@@ -383,7 +384,7 @@ function oppCard(o: import("./logic").Opportunity, score?: number, reasons: stri
   return `<div class="card">
   <div class="row" style="justify-content:space-between"><span class="chip plum">${esc(o.kind)}</span>${score !== undefined ? `<span class="score" style="font-size:1.2rem">${score}% fit</span>` : ""}</div>
   <h3 style="margin:.4rem 0 .1rem">${esc(o.title)}</h3>
-  <p class="muted" style="margin:0">${esc(o.org)} · ${esc(o.format === "Online" ? "Remote" : o.area)}${o.deadline ? ` · apply by ${esc(o.deadline)}` : ""}</p>
+  <p class="muted" style="margin:0"><a href="/org?name=${encodeURIComponent(o.org)}">${esc(o.org)}</a> · ${esc(o.format === "Online" ? "Remote" : o.area)}${o.deadline ? ` · apply by ${esc(o.deadline)}` : ""}</p>
   <p style="margin:.4rem 0">${esc(o.description)}</p>
   <div style="font-size:.85rem"><b>Wants:</b> ${esc(o.courses) || "No specific courses"}</div>
   ${reasons.length ? `<div style="margin-top:.4rem">${chips(reasons, "sage")}</div>` : ""}
@@ -416,10 +417,11 @@ export async function pairPage(env: Env, pairId: number, url: URL): Promise<Resp
 
   const body = `
 ${url.searchParams.get("new") ? `<div class="notice">It's a match. ${esc(pair.mentee_name)} and ${esc(pair.mentor_name)} are paired. Book your first 20 minutes.</div>` : ""}
+${url.searchParams.get("scheduled") ? `<div class="notice">Meeting scheduled. Add it to your calendar below.</div>` : ""}${url.searchParams.get("cancelled") ? `<div class="notice">Meeting cancelled.</div>` : ""}
 ${fromHeat !== null ? `<div class="notice">Meeting logged. Your flame grew from ${fromHeat} to ${flame.heat}.</div>` : ""}
 <div class="two" style="align-items:start">
   <div class="card" style="text-align:center">
-    <h1 style="font-size:1.5rem">${esc(pair.mentee_name)} + ${esc(pair.mentor_name)}</h1>
+    <h1 style="font-size:1.5rem"><a class="clink" href="/profile/${pair.mentee_id}">${esc(pair.mentee_name)}</a> + <a class="clink" href="/profile/${pair.mentor_id}">${esc(pair.mentor_name)}</a></h1>
     <p class="muted" style="margin:0">${esc(pair.career)} · ${esc(pair.mentor_headline)}</p>
     ${flameHtml(fromHeat !== null ? { ...flame, heat: fromHeat } : flame, 220, "bigFlame")}
     <p style="font-size:1.2rem;margin:.5rem 0">${statusHtml(flame.status)} · heat <b id="heatNum">${flame.heat}</b>/100</p>
@@ -441,6 +443,8 @@ ${fromHeat !== null ? `<div class="notice">Meeting logged. Your flame grew from 
       <a class="btn small ghost" style="margin-top:.8rem" href="/courses/personal?mentor=${pair.mentor_id}&mentee=${pair.mentee_id}">Build a course for ${esc(pair.mentee_name.split(" ")[0])} with ember</a>
       <div id="agenda" style="margin-top:.6rem" aria-live="polite"></div>
     </div>
+    ${chatBlock(pair)}
+    ${await meetingsBlock(env, pair.id)}
     <form class="card" style="margin-top:1rem" method="post" action="/pair/${pair.id}/log">
       <h2 style="font-size:1.2rem">Log a meeting</h2>
       <fieldset><legend>How did it go?</legend><div class="row">
@@ -520,20 +524,56 @@ export async function campfire(env: Env, url: URL): Promise<Response> {
   const after = withData.reduce((s, r) => s + r.checkins[0].confidence, 0) / (withData.length || 1);
   const attention = rows.filter((r) => r.flame.status === "Flickering" || r.flame.status === "Embers");
 
+  // Retention: weekly meetings and share of pairs that met each week (last 8 weeks).
+  const DAY = 86400000;
+  const now = Date.now();
+  const weeks = Array.from({ length: 8 }, (_, i) => {
+    const end = now - (7 - i) * 7 * DAY;
+    const start = end - 7 * DAY;
+    const existing = rows.filter((r) => new Date(r.p.created_at).getTime() < end);
+    const met = existing.filter((r) => r.checkins.some((c) => { const t = new Date(c.met_at).getTime(); return t >= start && t < end; }));
+    const count = rows.reduce((s, r) => s + r.checkins.filter((c) => { const t = new Date(c.met_at).getTime(); return t >= start && t < end; }).length, 0);
+    const d = new Date(start);
+    return { label: `${d.getUTCMonth() + 1}/${d.getUTCDate()}`, meetings: count, pct: existing.length ? Math.round((100 * met.length) / existing.length) : 0 };
+  });
+  const older = rows.filter((r) => now - new Date(r.p.created_at).getTime() > 21 * DAY);
+  const retained = older.filter((r) => r.flame.daysQuiet <= 21);
+  const retention = older.length ? Math.round((100 * retained.length) / older.length) : 100;
+  const churned = rows.filter((r) => r.flame.daysQuiet > 28).length;
+  const newPairs = rows.filter((r) => now - new Date(r.p.created_at).getTime() <= 30 * DAY).length;
+  const maxM = Math.max(1, ...weeks.map((w) => w.meetings));
+  const W = 640, H = 200, bw = W / weeks.length;
+  const chart = `<svg class="retchart" viewBox="0 0 ${W} ${H + 30}" role="img" aria-label="Meetings per week and share of pairs that met, last 8 weeks">
+    ${weeks.map((w, i) => `<rect class="rb" x="${i * bw + bw * 0.2}" y="${H - (w.meetings / maxM) * (H - 20)}" width="${bw * 0.6}" height="${(w.meetings / maxM) * (H - 20)}" rx="6" style="animation-delay:${i * 60}ms"><title>${w.label}: ${w.meetings} meetings</title></rect>
+    <text x="${i * bw + bw / 2}" y="${H + 20}" text-anchor="middle" class="rl">${w.label}</text>`).join("")}
+    <polyline class="rline" fill="none" points="${weeks.map((w, i) => `${i * bw + bw / 2},${H - (w.pct / 100) * (H - 20)}`).join(" ")}"/>
+    ${weeks.map((w, i) => `<circle class="rdot" cx="${i * bw + bw / 2}" cy="${H - (w.pct / 100) * (H - 20)}" r="5"><title>${w.label}: ${w.pct}% of pairs met</title></circle>`).join("")}
+  </svg>`;
+
   const bar = (label: string, v: number, color: string) =>
     `<div style="margin:.35rem 0"><div class="row" style="justify-content:space-between"><span>${label}</span><b>${v.toFixed(1)}/10</b></div>
      <div style="background:#f1e7dc;border-radius:8px;height:16px" role="img" aria-label="${label} ${v.toFixed(1)} out of 10"><div class="barfill" style="width:${v * 10}%;height:100%;background:${color};border-radius:8px"></div></div></div>`;
 
   const body = `
 ${url.searchParams.get("reset") ? `<div class="notice">Demo data reset.</div>` : ""}
-<div class="banner"><div class="row" style="justify-content:space-between;position:relative;z-index:1"><h1>Campfire</h1>
-<form method="post" action="/admin/reset" class="no-print" onsubmit="return confirm('Reset all demo data?')"><button class="btn small ghost" type="submit">Reset demo</button></form></div>
-<p>Every pair, quietest first.</p></div>
+<div class="banner"><div class="row" style="justify-content:space-between;position:relative;z-index:1"><h1>Admin · Campfire</h1>
+${url.searchParams.has("admin") || url.searchParams.get("reset") ? `<form method="post" action="/admin/reset" class="no-print" onsubmit="return confirm('Reset all demo data? This clears everything judges have added.')"><button class="btn small ghost" type="submit">Reset demo</button></form>` : ""}</div>
+<p>Retention across the program, and every pair, quietest first.</p></div>
 <div class="stats">
   <div class="card stat"><b data-count="${Math.round((100 * active) / n)}" data-suffix="%">${Math.round((100 * active) / n)}%</b>pairs active (Glowing or Blazing)</div>
   <div class="card stat"><b data-count="${avgHeat}">${avgHeat}</b>average heat</div>
   <div class="card stat"><b data-count="${meetings30}">${meetings30}</b>meetings in the last 30 days</div>
   <div class="card stat"><b data-count="${Math.abs(after - before).toFixed(1)}" data-prefix="${after - before >= 0 ? "+" : "−"}">${after - before >= 0 ? "+" : ""}${(after - before).toFixed(1)}</b>average confidence change since joining</div>
+</div>
+<div class="card retention" style="margin-bottom:1rem">
+  <div class="row" style="justify-content:space-between"><h2 style="font-size:1.2rem;margin:0">Retention</h2><span class="muted" style="font-size:.85rem"><span class="key kb"></span>meetings per week <span class="key kl"></span>% of pairs that met</span></div>
+  <div class="stats" style="margin:.8rem 0">
+    <div class="stat"><b data-count="${retention}" data-suffix="%">${retention}%</b>retention (pairs over 3 weeks old that met in the last 3 weeks)</div>
+    <div class="stat"><b data-count="${churned}">${churned}</b>churned (quiet over 4 weeks)</div>
+    <div class="stat"><b data-count="${newPairs}">${newPairs}</b>new pairs in 30 days</div>
+    <div class="stat"><b data-count="${weeks[weeks.length - 1].pct}" data-suffix="%">${weeks[weeks.length - 1].pct}%</b>of pairs met this week</div>
+  </div>
+  ${chart}
 </div>
 <div class="two" style="align-items:start">
   <div class="card"><h2 style="font-size:1.2rem">Needs attention <span class="muted">(${attention.length})</span></h2>${
@@ -597,7 +637,7 @@ export async function opportunities(env: Env, url: URL): Promise<Response> {
     : opps.map((o) => oppCard(o));
   const body = `
 ${url.searchParams.get("posted") ? `<div class="notice">Posted. We're matching it to students by coursework.</div>` : ""}
-<div class="banner"><div class="row" style="justify-content:space-between;position:relative;z-index:1"><h1>Opportunities</h1><a class="btn" href="/opportunities/new">Post an opportunity</a></div>
+<div class="banner"><div class="row" style="justify-content:space-between;position:relative;z-index:1"><h1>Opportunities</h1><div class="row"><a class="btn ghost onDark" href="/orgs">Organizations</a><a class="btn" href="/opportunities/new">Post an opportunity</a></div></div>
 <p>Internships, jobs and programs, matched to the classes you've taken.</p></div>
 <form method="get" class="row card" style="margin-bottom:1rem"><label for="as" style="margin:0">See fit for</label>
 <select id="as" name="as" style="max-width:260px" onchange="this.form.submit()"><option value="">Everyone</option>${mentees
@@ -607,7 +647,8 @@ ${url.searchParams.get("posted") ? `<div class="notice">Posted. We're matching i
   return html(layout("Opportunities", body, "/opportunities"));
 }
 
-export function oppForm(): Response {
+export function oppForm(url?: URL): Response {
+  const orgName = (url?.searchParams.get("org") ?? "").slice(0, 120);
   const body = `
 <h1>Post an opportunity</h1>
 <p class="muted">List the courses you want. We show you who fits.</p>
@@ -616,7 +657,7 @@ export function oppForm(): Response {
     <div><label for="kind">Type</label><select id="kind" name="kind">${options(OPP_KINDS)}</select></div>
     <div><label for="career">Career path</label><select id="career" name="career">${options(ALL_PATHS.filter((c) => c !== "Not sure yet"))}</select></div>
     <div><label for="title">Title</label><input id="title" name="title" required maxlength="120" placeholder="e.g. Data Analyst Intern"></div>
-    <div><label for="org">Organization</label><input id="org" name="org" required maxlength="120"></div>
+    <div><label for="org">Organization</label><input id="org" name="org" required maxlength="120" value="${esc(orgName)}"></div>
   </div>
   <label for="courses">Coursework you're looking for</label>
   <input id="courses" name="courses" required maxlength="400" placeholder="Separate with commas: SQL Databases, Statistics, Python">

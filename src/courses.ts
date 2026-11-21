@@ -187,15 +187,16 @@ ${coursesTabs("library")}
 export async function courseForm(env: Env, url: URL): Promise<Response> {
   const opps = await env.DB.prepare(`SELECT id, title, org FROM opportunities ORDER BY created_at DESC`).all<{ id: number; title: string; org: string }>();
   const oppId = parseInt(url.searchParams.get("opp") ?? "", 10) || 0;
+  const orgName = (url.searchParams.get("org") ?? "").slice(0, 80);
   const body = `
 <h1>Share a course</h1>
 <p class="muted">Mentors: share a class you teach or loved. Employers: add prep courses for your posting.</p>
 <form method="post" action="/courses" class="card">
   <div class="two">
-    <div><label for="author_kind">I'm a</label><select id="author_kind" name="author_kind">${options(AUTHOR_KINDS, oppId ? "Employer" : "Mentor")}</select></div>
-    <div><label for="author">Your name or organization</label><input id="author" name="author" required maxlength="80"></div>
+    <div><label for="author_kind">I'm a</label><select id="author_kind" name="author_kind">${options(AUTHOR_KINDS, oppId || orgName ? "Employer" : "Mentor")}</select></div>
+    <div><label for="author">Your name or organization</label><input id="author" name="author" required maxlength="80" value="${esc(orgName)}"></div>
     <div><label for="title">Course title</label><input id="title" name="title" required maxlength="120" placeholder="e.g. SQL for analysts"></div>
-    <div><label for="provider">Where it's taught</label><input id="provider" name="provider" maxlength="80" placeholder="e.g. Coursera, ASU, my own session"></div>
+    <div><label for="provider">Where it's taught</label><input id="provider" name="provider" maxlength="80" value="${esc(orgName)}" placeholder="e.g. Coursera, ASU, my own session"></div>
     <div><label for="career">Path</label><select id="career" name="career">${options(FORM_PATHS)}</select></div>
     <div><label for="level">Level</label><select id="level" name="level">${options(LEVELS)}</select></div>
     <div><label for="cost">Cost</label><select id="cost" name="cost">${options(COSTS)}</select></div>

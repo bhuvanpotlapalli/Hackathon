@@ -23,6 +23,9 @@ export interface User {
   capacity: number;
   /** Fun interests outside tech, comma-separated (e.g. "Hiking, Gaming"). */
   interests: string;
+  /** Profile extras (optional): used for the chemistry part of matching. */
+  experience?: string;
+  fun_facts?: string;
   created_at: string;
 }
 
@@ -133,7 +136,7 @@ export const STATUS_LABEL: Record<Status, string> = {
 };
 
 const STOP = new Set(
-  "a an and the to of for in on at by with from into my me i ii iii want get land learn more about become my our your their this that job role career tech intro introduction fundamentals basics principles methods computer science advanced applied".split(
+  "a an and the to of for in on at by with from into my me i ii iii want get land learn more about become my our your their this that job role career tech intro introduction fundamentals basics principles methods computer science advanced applied years year then former before after also love loves".split(
     " ",
   ),
 );
@@ -182,7 +185,7 @@ export interface MatchResult {
  * + 10 availability overlaps
  * +  5 format/area works
  * + 10 mentor has open capacity
- * + up to 10 shared fun interests (tiebreaker; total capped at 100)
+ * + up to 10 shared fun interests + up to 10 chemistry (fun facts, work background); capped at 100
  */
 export function matchScore(mentee: User, mentor: User, mentorActivePairs: number): MatchResult {
   let score = 0;
@@ -250,6 +253,22 @@ export function matchScore(mentee: User, mentor: User, mentorActivePairs: number
     score += Math.min(10, fun.length * 5);
     reasons.push(`Both into ${fun.slice(0, 2).join(" and ").toLowerCase()}`);
   }
+
+  // Chemistry: overlapping fun facts and work backgrounds (+5 each, up to 10).
+  const fa = keywords(mentee.fun_facts ?? "");
+  const funShared = [...keywords(mentor.fun_facts ?? "")].filter((w) => fa.has(w));
+  let chem = 0;
+  if (funShared.length) {
+    chem += 5;
+    reasons.push(`Chemistry: you both mention ${funShared.slice(0, 2).join(" and ")}`);
+  }
+  const ea = keywords(`${mentee.experience ?? ""} ${mentee.headline}`);
+  const expShared = [...keywords(mentor.experience ?? "")].filter((w) => ea.has(w) && w.length > 3);
+  if (expShared.length) {
+    chem += 5;
+    reasons.push(`Similar background: ${expShared.slice(0, 2).join(", ")}`);
+  }
+  score += chem;
 
   if (mentor.no_degree && mentee.no_degree) reasons.push("Also started without a tech degree");
 
