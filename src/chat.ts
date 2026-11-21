@@ -4,7 +4,7 @@
 
 import * as ai from "./ai";
 import * as db from "./db";
-import { AREAS, AVAILABILITY, CAREERS, COURSE_LIBRARY, FORMATS, FUN_INTERESTS, clamp } from "./logic";
+import { AREAS, AVAILABILITY, CAREERS, COURSE_LIBRARY, ENG_DOMAINS, FORMATS, FUN_INTERESTS, clamp, normCareer } from "./logic";
 import type { Env } from "./pages";
 import { html, layout } from "./ui";
 
@@ -16,6 +16,10 @@ const INTERESTS: [string, string][] = [
   ["Fixing tech for people", "IT/Support"],
   ["Leading the team and the plan", "Product"],
   ["Pitching and telling the story", "Tech Sales & Marketing"],
+  ["Building machines and real-world things", "Engineering"],
+  ["Making games", "Game Design"],
+  ["Tech that helps patients", "Health Tech"],
+  ["Money, markets and apps", "Fintech"],
 ];
 
 const GOAL_IDEAS: Record<string, string[]> = {
@@ -26,10 +30,15 @@ const GOAL_IDEAS: Record<string, string[]> = {
   Cybersecurity: ["Pass Security+", "Get a SOC analyst job", "Build a home lab"],
   "IT/Support": ["Earn CompTIA A+", "Land a help desk job", "Move up to sysadmin"],
   "Tech Sales & Marketing": ["Break into tech sales", "Grow my LinkedIn network", "Land a marketing role"],
+  Engineering: ["Land an engineering internship", "Pass the FE exam", "Build a design project for my portfolio"],
+  "Cloud/DevOps": ["Earn a cloud certification", "Land a DevOps internship", "Automate my first deployment"],
+  "Game Design": ["Publish my first game", "Land a game studio internship", "Build a playable portfolio"],
+  Fintech: ["Land a fintech internship", "Become a financial data analyst", "Build a fintech side project"],
+  "Health Tech": ["Land a health IT role", "Learn health data standards", "Build a health data project"],
 };
 
 export function chatPage(): Response {
-  const cfg = JSON.stringify({ fun: FUN_INTERESTS, careers: CAREERS, interests: INTERESTS, courses: COURSE_LIBRARY, goals: GOAL_IDEAS, availability: AVAILABILITY, formats: FORMATS, areas: AREAS }).replace(/</g, "\\u003c");
+  const cfg = JSON.stringify({ eng: ENG_DOMAINS, fun: FUN_INTERESTS, careers: CAREERS, interests: INTERESTS, courses: COURSE_LIBRARY, goals: GOAL_IDEAS, availability: AVAILABILITY, formats: FORMATS, areas: AREAS }).replace(/</g, "\\u003c");
   const body = `
 <div class="chatwrap">
   <div class="chathead">
@@ -81,7 +90,12 @@ async function run(){
     await bot('Nice to meet you, '+name+'! Are you here to find a mentor, or to be one?');
     chips(['Find a mentor','Be a mentor'],async function(r){P.role=r==='Be a mentor'?'mentor':'mentee';progress();
       await bot(P.role==='mentor'?'Love that. Which field do you work in?':'Big question first: what field are you going into?');
-      chips(C.careers,async function(c){
+      chips(C.careers.concat(['Other']),async function(c){
+        if(c==='Engineering'){await bot('Engineering is huge. Which kind?');
+          chips(C.eng.concat(['Other']),async function(d){
+            if(d==='Other'){await bot('What kind of engineering?');ask('e.g. Robotics, Nuclear, Materials',function(v){P.career='Engineering · '+v.slice(0,30);field()})}
+            else{P.career='Engineering · '+d;field()}});return}
+        if(c==='Other'){await bot('Cool. What field is it?');ask('e.g. Robotics, Fintech, EdTech',function(v){P.career='Other: '+v.slice(0,40);field()});return}
         if(c==='Not sure yet'&&P.role==='mentee'){await bot("Totally fine, most people start there. Which of these sounds the most fun?");
           chips(C.interests,async function(it){P.career=it[1];await bot('Then '+it[1]+' could be your thing. Your mentor can help you test that.');field()})}
         else{P.career=c;field()}})})});
@@ -91,12 +105,12 @@ async function field(){progress();
   await bot("Where are you coming from?");
   chips(P.role==='mentor'?['Tech degree','Bootcamp','Self-taught','Career changer']:['College student, tech major','College student, other major','Career changer','Bootcamp or self-taught'],async function(bg){
     P.headline=bg;P.no_degree=/tech major|Tech degree/.test(bg)?0:1;progress();
-    var list=(C.courses[P.career]||C.courses['Not sure yet']);
+    var base=P.career.indexOf('Engineering')===0?'Engineering':P.career;var list=(C.courses[P.career]||C.courses[base]||C.courses['Not sure yet']);
     await bot(P.role==='mentor'?'Tap the classes you’ve taken or could teach.':'Tap the classes you’ve taken or are taking.');
     chips(list,async function(picked){P.courses=picked;progress();
       await bot(picked.length?(picked.length+' class'+(picked.length>1?'es':'')+'. Nice.'):'No worries, your mentor will help you pick your first one.');
       if(P.role==='mentor'){await bot('What can you help mentees with?');ask('e.g. portfolio reviews, interview practice',goal)}
-      else{await bot("What's the one thing you want in the next 6 months?");ask('Your goal',goal,C.goals[P.career]||[])}
+      else{await bot("What's the one thing you want in the next 6 months?");ask('Your goal',goal,C.goals[P.career]||C.goals[P.career.indexOf('Engineering')===0?'Engineering':'']||[])}
     },{multi:true,allowEmpty:P.role==='mentee',placeholder:'Other courses (comma-separated)'})});
 }
 async function goal(g){P.goal=g;progress();
@@ -168,7 +182,7 @@ export async function chatFinish(req: Request, env: Env): Promise<Response> {
   const id = await db.createUser(env.DB, {
     name,
     role,
-    career: pick(b.career, CAREERS, "Not sure yet"),
+    career: normCareer(b.career),
     no_degree: b.no_degree ? 1 : 0,
     goal,
     headline: txt(b.headline, 120),

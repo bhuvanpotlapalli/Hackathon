@@ -317,8 +317,8 @@ html[data-theme=dark] .sx-light{background:radial-gradient(90% 70% at 50% 0%,#2a
 .glow{position:absolute;left:50%;top:55%;width:700px;height:700px;margin:-350px 0 0 -350px;border-radius:50%;background:radial-gradient(circle,rgba(255,140,50,.45) 0%,rgba(255,107,53,.12) 40%,transparent 70%);opacity:.15;z-index:0;pointer-events:none}
 .sx-dark .heatread span{color:rgba(255,255,255,.6)}
 .tagcloud{display:flex;flex-wrap:wrap;justify-content:center;gap:.6rem;max-width:720px}
-.tagcloud span{font:600 clamp(.9rem,1.6vw,1.15rem) system-ui;padding:.55rem 1rem;border-radius:99px;background:rgba(79,157,105,.12);border:1px solid rgba(79,157,105,.35);opacity:0;transform:translateY(30px) scale(.8);transition:all .7s cubic-bezier(.34,1.56,.64,1) calc(var(--i)*70ms + .3s)}
-.sx.on .tagcloud span{opacity:1;transform:none;animation:bob 4s ease-in-out calc(var(--i)*-.4s) infinite}
+.tagcloud a{color:inherit!important;text-decoration:none!important;}.tagcloud span,.tagcloud a{font:600 clamp(.9rem,1.6vw,1.15rem) system-ui;padding:.55rem 1rem;border-radius:99px;background:rgba(79,157,105,.12);border:1px solid rgba(79,157,105,.35);opacity:0;transform:translateY(30px) scale(.8);transition:all .7s cubic-bezier(.34,1.56,.64,1) calc(var(--i)*70ms + .3s)}
+.sx.on .tagcloud span,.sx.on .tagcloud a{opacity:1;transform:none;animation:bob 4s ease-in-out calc(var(--i)*-.4s) infinite}
 @keyframes bob{50%{transform:translateY(-6px)}}
 .sx-dark .ocard,.sx-go .ocard{background:#22162f;color:#f6eefa;border-color:rgba(255,255,255,.12)}
 .sx-go .demo-names{opacity:.75}.sx-go .demo-names a{color:#ffb98f}

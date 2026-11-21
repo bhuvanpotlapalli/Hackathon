@@ -1,7 +1,7 @@
 // Personalized courses: a mentor picks a mentee and ember (Workers AI) builds a short course
 // tailored to that mentee's path, classes and goal, using courses from the library where they fit.
 import { ask } from "./ai";
-import { COURSE_LIBRARY, sharedCourses, splitCourses, starterMilestones, type User } from "./logic";
+import { libraryFor, sharedCourses, splitCourses, starterMilestones, type User } from "./logic";
 import { esc, html, layout } from "./ui";
 
 interface Env {
@@ -45,7 +45,7 @@ const first = (n: string) => n.split(" ")[0];
 
 /** Template course, used for demo data and whenever the AI is unavailable. */
 export function templateCourse(mentee: User, mentor: User, focus: string): { title: string; summary: string; modules: Module[] } {
-  const lib = COURSE_LIBRARY[mentee.career] ?? COURSE_LIBRARY["Not sure yet"];
+  const lib = libraryFor(mentee.career);
   const taken = new Set(sharedCourses(lib.join(", "), mentee.courses));
   const next = lib.filter((c) => !taken.has(c)).slice(0, 2);
   const ms = starterMilestones(mentee.career, mentee.goal);
@@ -87,7 +87,7 @@ async function buildCourse(env: Env, mentee: User, mentor: User, focus: string) 
     "You are ember, TechWomenAZ's AI course builder. Build a short personalized course for one mentee. Use ONLY facts given. Reply in exactly this format and nothing else:\nTITLE: <max 8 words>\nSUMMARY: <one sentence, max 25 words>\nMODULE: <title, max 7 words> | <why it matters for this mentee, max 15 words> | <step>; <step>; <step>\n(exactly 4 MODULE lines, steps are short concrete actions)",
     `Mentee: ${mentee.name}, path ${mentee.career}, background: ${mentee.headline}. Classes taken: ${mentee.courses || "none yet"}. Goal: ${mentee.goal}.
 Mentor: ${mentor.name}, ${mentor.headline}. Classes the mentor took: ${mentor.courses}.
-Recommended next classes for this path: ${(COURSE_LIBRARY[mentee.career] ?? []).join(", ")}.
+Recommended next classes for this path: ${libraryFor(mentee.career).join(", ")}.
 ${focus ? `Mentor wants to focus on: ${focus}` : ""}`,
     420,
   );

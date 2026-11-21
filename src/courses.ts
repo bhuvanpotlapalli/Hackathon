@@ -1,7 +1,7 @@
 // Course library: mentors and employers share courses with filter tags,
 // students filter by tags and goals, and ember matches courses to each opportunity's wants.
 import { ask } from "./ai";
-import { AREAS, CAREERS, clamp, keywords, splitCourses, type Opportunity } from "./logic";
+import { ALL_PATHS, AREAS, CAREERS, careerBase, clamp, keywords, splitCourses, type Opportunity } from "./logic";
 import { chips, esc, html, layout, options } from "./ui";
 import { coursesTabs } from "./personal";
 
@@ -33,6 +33,7 @@ export const COSTS = ["Free", "Paid"];
 export const COURSE_FORMATS = ["Self-paced", "Live class", "Workshop"];
 export const AUTHOR_KINDS = ["Mentor", "Employer"];
 const PATHS = CAREERS.filter((c) => c !== "Not sure yet");
+const FORM_PATHS = ALL_PATHS.filter((c) => c !== "Not sure yet");
 
 export const COURSE_SCHEMA = `CREATE TABLE IF NOT EXISTS courses (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -71,6 +72,9 @@ const SEED: SeedCourse[] = [
   C("Network Security foundations", "TechWomenAZ mentor session (demo)", "Marcus Bell", "Mentor", null, "Cybersecurity", "Beginner", "Free", "Workshop", "3 sessions", "network security, computer networking, security+", "Ports, firewalls and packet captures in a home lab. Maps to Security+."),
   C("Linux Administration for SOC work", "TechWomenAZ mentor session (demo)", "Ray Castillo", "Mentor", null, "Cybersecurity", "Intermediate", "Free", "Self-paced", "8 hours", "linux administration, logs, incident response", "The Linux commands and log reading a SOC analyst uses every day."),
   C("Agile and product basics", "TechWomenAZ mentor session (demo)", "Sofia Martinez", "Mentor", null, "Product", "Beginner", "Free", "Live class", "4 weeks", "product management, agile project management, roadmaps", "Write a one-page brief and a roadmap, then present it to a real PM."),
+  C("Statics and CAD for your first design project", "TechWomenAZ mentor session (demo)", "Grace Whitfield", "Mentor", null, "Engineering · Mechanical", "Beginner", "Free", "Workshop", "4 sessions", "statics, cad modeling, solidworks, portfolio", "Model a bracket in CAD, check it with statics, and write it up as a case study."),
+  C("Circuits to embedded systems", "TechWomenAZ mentor session (demo)", "Ana Morales", "Mentor", null, "Engineering · Electrical", "Intermediate", "Free", "Live class", "6 weeks", "circuit analysis, embedded systems, digital logic, fe exam", "From Ohm's law to programming a microcontroller, with FE exam practice."),
+  C("AutoCAD for civil internships", "TechWomenAZ mentor session (demo)", "Joy Nakamura", "Mentor", null, "Engineering · Civil", "Beginner", "Free", "Self-paced", "8 hours", "autocad, structural analysis, site plans", "Draw a real site plan the way interns do on day one."),
   C("Help Desk Fundamentals bootcamp", "TechWomenAZ mentor session (demo)", "Tasha Greene", "Mentor", null, "IT/Support", "Beginner", "Free", "Workshop", "4 sessions", "help desk fundamentals, windows administration, computer hardware", "Tickets, troubleshooting and Windows admin, with an A+ study plan."),
   // Uploaded by the employers for their postings.
   C("Saguaro Health UX intern prep", "Saguaro Health (demo)", "Saguaro Health recruiting", "Employer", 1, "UX/Design", "Beginner", "Free", "Self-paced", "3 hours", "user research, figma, healthcare ux", "How our design team works, plus the exercise we use in interviews."),
@@ -110,12 +114,12 @@ export function relevance(c: Course, text: string): number {
 function courseCard(c: Course, extra = ""): string {
   return `<div class="card course-card">
   <div class="row" style="justify-content:space-between;gap:.4rem"><span class="chip plum">${esc(c.career)}</span><span class="chip ${c.cost === "Free" ? "sage" : ""}">${esc(c.cost)}</span></div>
-  <h3 style="margin:.45rem 0 .1rem;font-size:1.1rem">${esc(c.title)}</h3>
+  <h3 style="margin:.45rem 0 .1rem;font-size:1.1rem"><a class="clink" href="/courses/${c.id}">${esc(c.title)}</a></h3>
   <p class="muted" style="margin:0;font-size:.88rem">${esc(c.author_kind === "Employer" ? "From the employer" : "Shared by mentor")} ${esc(c.author)} · ${esc(c.level)} · ${esc(c.format)}${c.length ? ` · ${esc(c.length)}` : ""}</p>
   <p style="margin:.45rem 0;font-size:.95rem">${esc(c.description)}</p>
   <div class="tagrow">${tagList(c).map((t) => `<a class="tag" href="/courses?tag=${encodeURIComponent(t)}">#${esc(t)}</a>`).join("")}</div>
   ${extra}
-  ${/^https?:\/\//.test(c.link) ? `<a class="btn small" style="margin-top:.6rem" href="${esc(c.link)}" target="_blank" rel="noopener">Open course</a>` : ""}
+  <div class="row" style="margin-top:.6rem"><a class="btn small" href="/courses/${c.id}">View course</a>${/^https?:\/\//.test(c.link) ? `<a class="btn small ghost" href="${esc(c.link)}" target="_blank" rel="noopener">Course website</a>` : ""}</div>
 </div>`;
 }
 
@@ -129,9 +133,12 @@ export async function coursesPage(env: Env, url: URL): Promise<Response> {
   const format = q.get("format") ?? "";
   const goal = (q.get("goal") ?? "").slice(0, 200);
   const tags = q.getAll("tag").map((t) => t.toLowerCase()).slice(0, 8);
+  const ids = (q.get("ids") ?? "").split(",").map((x) => parseInt(x, 10)).filter((n) => n > 0);
   let list = all.filter(
+    (c) => !ids.length || ids.includes(c.id),
+  ).filter(
     (c) =>
-      (!career || c.career === career) &&
+      (!career || c.career === career || careerBase(c.career) === career) &&
       (!level || c.level === level) &&
       (!cost || c.cost === cost) &&
       (!format || c.format === format) &&
@@ -140,7 +147,7 @@ export async function coursesPage(env: Env, url: URL): Promise<Response> {
   if (goal) list = list.map((c) => ({ c, r: relevance(c, goal) })).filter((x) => x.r > 0).sort((a, b) => b.r - a.r).map((x) => x.c);
   // Most-used tags (within the career filter) become tap-to-filter chips.
   const counts = new Map<string, number>();
-  for (const c of all.filter((c) => !career || c.career === career)) for (const t of tagList(c)) counts.set(t, (counts.get(t) ?? 0) + 1);
+  for (const c of all.filter((c) => !career || c.career === career || careerBase(c.career) === career)) for (const t of tagList(c)) counts.set(t, (counts.get(t) ?? 0) + 1);
   const topTags = [...counts.entries()].sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0])).slice(0, 16).map(([t]) => t);
   const withTag = (t: string) => {
     const p = new URLSearchParams(q);
@@ -156,6 +163,11 @@ ${q.get("added") ? `<div class="notice">Course added. Students can find it now.<
 <div class="banner"><div class="row" style="justify-content:space-between;position:relative;z-index:1"><h1>Courses</h1><a class="btn" href="/courses/new">Share a course</a></div>
 <p>Shared by mentors and employers. Filter to what fits your goal.</p></div>
 ${coursesTabs("library")}
+<div class="actions3">
+  <a class="card act" href="#list"><b>Take a course</b><span>Pick one below, open it, and tick off lessons as you go.</span></a>
+  <a class="card act" href="/courses/new"><b>Share a course</b><span>Mentors and employers: add a course with filter tags.</span></a>
+  <a class="card act" href="/courses/personal"><b>Build one with ember</b><span>Mentors: ember writes a course for one mentee.</span></a>
+</div>
 <form method="get" class="card filters">
   <div class="fgrid">
     ${sel("career", PATHS, career, "Path")}${sel("level", LEVELS, level, "Level")}${sel("cost", COSTS, cost, "Cost")}${sel("format", COURSE_FORMATS, format, "Format")}
@@ -164,9 +176,10 @@ ${coursesTabs("library")}
   <label for="f-goal">Your goal</label>
   <div class="row"><input id="f-goal" name="goal" value="${esc(goal)}" maxlength="200" placeholder="e.g. land a SOC analyst job" style="flex:1;min-width:12rem"><button class="btn small" type="submit">Find courses</button></div>
   <div class="tagrow" style="margin-top:.7rem">${topTags.map((t) => `<a class="tag${tags.includes(t) ? " on" : ""}" href="${esc(withTag(t))}">#${esc(t)}</a>`).join("")}</div>
-  ${career || level || cost || format || goal || tags.length ? `<p style="margin:.6rem 0 0"><a href="/courses">Clear filters</a></p>` : ""}
+  <p style="margin:.6rem 0 0"><a id="savedLink" href="/courses" style="display:none"></a>${career || level || cost || format || goal || tags.length || ids.length ? ` <a href="/courses">Clear filters</a>` : ""}</p>
 </form>
-<p class="muted" style="margin:.8rem 0">${list.length} course${list.length === 1 ? "" : "s"}${goal ? `, best fit for “${esc(goal)}” first` : ""}</p>
+<script>try{var s=JSON.parse(localStorage.getItem('savedCourses')||'[]');if(s.length){var a=document.getElementById('savedLink');a.href='/courses?ids='+s.join(',');a.textContent='★ My saved courses ('+s.length+')';a.style.display='inline';a.style.marginRight='1rem'}}catch(e){}</script>
+<p class="muted" id="list" style="margin:.8rem 0;scroll-margin-top:80px">${list.length} course${list.length === 1 ? "" : "s"}${goal ? `, best fit for “${esc(goal)}” first` : ""}</p>
 <div class="grid">${list.map((c) => courseCard(c)).join("") || `<div class="card">No courses match those filters yet. <a href="/courses">Clear filters</a></div>`}</div>`;
   return html(layout("Courses", body, "/courses"));
 }
@@ -183,7 +196,7 @@ export async function courseForm(env: Env, url: URL): Promise<Response> {
     <div><label for="author">Your name or organization</label><input id="author" name="author" required maxlength="80"></div>
     <div><label for="title">Course title</label><input id="title" name="title" required maxlength="120" placeholder="e.g. SQL for analysts"></div>
     <div><label for="provider">Where it's taught</label><input id="provider" name="provider" maxlength="80" placeholder="e.g. Coursera, ASU, my own session"></div>
-    <div><label for="career">Path</label><select id="career" name="career">${options(PATHS)}</select></div>
+    <div><label for="career">Path</label><select id="career" name="career">${options(FORM_PATHS)}</select></div>
     <div><label for="level">Level</label><select id="level" name="level">${options(LEVELS)}</select></div>
     <div><label for="cost">Cost</label><select id="cost" name="cost">${options(COSTS)}</select></div>
     <div><label for="format">Format</label><select id="format" name="format">${options(COURSE_FORMATS)}</select></div>
@@ -215,13 +228,77 @@ export async function courseSubmit(req: Request, env: Env): Promise<Response> {
     `INSERT INTO courses (title, provider, author, author_kind, opp_id, career, level, cost, format, length, tags, description, link, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
   )
     .bind(
-      title, s("provider", 80), author, pick("author_kind", AUTHOR_KINDS), opp ? opp.id : null, pick("career", PATHS), pick("level", LEVELS),
+      title, s("provider", 80), author, pick("author_kind", AUTHOR_KINDS), opp ? opp.id : null, pick("career", FORM_PATHS), pick("level", LEVELS),
       pick("cost", COSTS), pick("format", COURSE_FORMATS), s("length", 40),
       splitCourses(s("tags", 200)).slice(0, 8).map((t) => t.toLowerCase()).join(", "), s("description", 400),
       /^https?:\/\//.test(link) ? link : "", new Date().toISOString(),
     )
     .run();
   return new Response(null, { status: 303, headers: { location: opp ? `/opportunities/${opp.id}?course=1` : "/courses?added=1" } });
+}
+
+
+
+/** Lessons for a library course: one per filter tag, then a capstone. */
+function lessons(c: Course): [string, string][] {
+  const t = tagList(c).slice(0, 4);
+  const cap = (s: string) => s.replace(/\b\w/g, (m) => m.toUpperCase());
+  const out: [string, string][] = [["Kickoff", `Read the overview and set one goal for "${c.title}".`]];
+  t.forEach((tag, i) => out.push([`${i + 1}. ${cap(tag)}`, i === 0 ? `Learn the basics of ${tag} and take notes.` : `Practice ${tag} with one small exercise.`]));
+  out.push(["Capstone", c.author_kind === "Employer" ? "Finish the exercise this employer uses in interviews." : `Show your work to ${c.author.split(" ")[0]} or your mentor for feedback.`]);
+  return out;
+}
+
+// ---------------------------------------------------------------- /courses/:id
+export async function courseDetail(env: Env, id: number): Promise<Response> {
+  const c = await env.DB.prepare(`SELECT * FROM courses WHERE id = ?`).bind(id).first<Course>();
+  if (!c) return html(layout("Not found", `<div class="card"><h1>Course not found</h1><p><a href="/courses">Back to courses</a></p></div>`), 404);
+  const [opps, mentors] = await Promise.all([
+    env.DB.prepare(`SELECT * FROM opportunities ORDER BY created_at DESC`).all<Opportunity>(),
+    env.DB.prepare(`SELECT id, name, headline, courses, career FROM users WHERE role = 'mentor'`).all<{ id: number; name: string; headline: string; courses: string; career: string }>(),
+  ]);
+  const helps = opps.results
+    .map((o) => ({ o, r: relevance(c, `${o.courses} ${o.title}`) + (o.id === c.opp_id ? 10 : 0) + (o.career === c.career ? 1 : 0) }))
+    .filter((x) => x.r > 1)
+    .sort((a, b) => b.r - a.r)
+    .slice(0, 3);
+  const guides = mentors.results
+    .map((m) => ({ m, r: relevance(c, m.courses) + (m.career === c.career ? 1 : 0) }))
+    .filter((x) => x.r > 1 && x.m.name !== c.author)
+    .sort((a, b) => b.r - a.r)
+    .slice(0, 3);
+  const body = `
+<p><a href="/courses">← All courses</a></p>
+<div class="banner"><div class="row" style="gap:.4rem;position:relative;z-index:1"><span class="chip" style="background:rgba(255,255,255,.15);color:#fff">${esc(c.career)}</span><span class="chip" style="background:rgba(255,255,255,.15);color:#fff">${esc(c.level)}</span><span class="chip" style="background:rgba(255,255,255,.15);color:#fff">${esc(c.cost)}</span></div>
+<h1 style="margin-top:.6rem">${esc(c.title)}</h1>
+<p>${esc(c.author_kind === "Employer" ? "From the employer" : "Shared by mentor")} ${esc(c.author)}${c.provider ? ` · ${esc(c.provider)}` : ""} · ${esc(c.format)}${c.length ? ` · ${esc(c.length)}` : ""}</p>
+<div class="row" style="margin-top:1rem;position:relative;z-index:1"><button class="btn" type="button" id="saveBtn">Save to my courses</button>${/^https?:\/\//.test(c.link) ? `<a class="btn ghost onDark" href="${esc(c.link)}" target="_blank" rel="noopener">Course website</a>` : ""}<a class="btn ghost onDark" href="/courses/personal">Make it personal with ember</a></div></div>
+<div class="two" style="align-items:start">
+  <div class="card"><h2 style="font-size:1.2rem">What you'll learn</h2><p>${esc(c.description) || "No description yet."}</p>
+  <div class="tagrow">${tagList(c).map((t) => `<a class="tag" href="/courses?tag=${encodeURIComponent(t)}">#${esc(t)}</a>`).join("")}</div>
+  <h2 style="font-size:1.2rem;margin-top:1.2rem">Lessons</h2>
+  <div class="pc-prog light"><b id="lpBar"></b></div><p class="muted" id="lpTxt" style="font-size:.88rem;margin:.2rem 0 .6rem"></p>
+  <ol class="lessons">${lessons(c).map((l, i) => `<li><label class="check"><input type="checkbox" data-k="${i}"> <span><b>${esc(l[0])}</b><br><span class="muted">${esc(l[1])}</span></span></label></li>`).join("")}</ol>
+  <button class="btn" type="button" id="startBtn">Start course</button></div>
+  <div class="card"><h2 style="font-size:1.2rem">Prepares you for</h2>${
+    helps.length
+      ? helps.map((x) => `<p style="margin:.4rem 0"><a href="/opportunities/${x.o.id}"><b>${esc(x.o.title)}</b></a><br><span class="muted">${esc(x.o.org)} · ${esc(x.o.kind)}${x.o.id === c.opp_id ? " · made for this posting" : ""}</span></p>`).join("")
+      : `<p class="muted">No open postings ask for this yet. <a href="/opportunities">See all opportunities</a>.</p>`
+  }
+  <h2 style="font-size:1.2rem;margin-top:1rem">Mentors who know this</h2>${
+    guides.length
+      ? guides.map((x) => `<p style="margin:.4rem 0"><b>${esc(x.m.name)}</b><br><span class="muted">${esc(x.m.headline)}</span></p>`).join("")
+      : `<p class="muted">${esc(c.author)} shared it. <a href="/start">Get matched</a> to find a mentor for it.</p>`
+  }</div>
+</div>
+<script>(function(){var id=${c.id},b=document.getElementById('saveBtn'),s=[];try{s=JSON.parse(localStorage.getItem('savedCourses')||'[]')}catch(e){}
+function paint(){var on=s.indexOf(id)>=0;b.textContent=on?'Saved ✓':'Save to my courses';b.classList.toggle('ghost',on)}
+b.onclick=function(){var i=s.indexOf(id);if(i>=0)s.splice(i,1);else s.push(id);try{localStorage.setItem('savedCourses',JSON.stringify(s))}catch(e){}paint();if(window.toast)toast(i>=0?'Removed from your courses':'Saved. Find it under My saved courses.')};paint();
+var key='lessons-'+id,done={};try{done=JSON.parse(localStorage.getItem(key)||'{}')}catch(e){}var boxes=[].slice.call(document.querySelectorAll('.lessons input')),sb=document.getElementById('startBtn');
+function prog(){var n=boxes.filter(function(x){return x.checked}).length;document.getElementById('lpBar').style.width=(n/boxes.length*100)+'%';document.getElementById('lpTxt').textContent=n+' of '+boxes.length+' lessons done'+(n===boxes.length?'. Course complete!':'');sb.textContent=n===0?'Start course':n===boxes.length?'Course complete ✓':'Continue: lesson '+(n+1)}
+boxes.forEach(function(x){x.checked=!!done[x.dataset.k];x.onchange=function(){done[x.dataset.k]=x.checked;try{localStorage.setItem(key,JSON.stringify(done))}catch(e){}prog();if(x.checked&&window.toast)toast('Lesson done. Nice.')}});
+sb.onclick=function(){var next=boxes.filter(function(x){return !x.checked})[0];if(!next)return;if(s.indexOf(id)<0){s.push(id);try{localStorage.setItem('savedCourses',JSON.stringify(s))}catch(e){}paint()}var li=next.closest('li');li.scrollIntoView({behavior:'smooth',block:'center'});li.classList.add('flash');setTimeout(function(){li.classList.remove('flash')},1200)};prog()})();</script>`;
+  return html(layout(c.title, body, "/courses"));
 }
 
 // ---------------------------------------------------------------- Opportunity ↔ courses
@@ -301,6 +378,14 @@ export async function apiOppCourses(env: Env, oppId: number): Promise<Response> 
 }
 
 export const COURSE_CSS = `
+.clink{color:inherit!important;text-decoration:none!important;border:0!important}.clink:hover{color:var(--ember)!important}
+.actions3{display:grid;grid-template-columns:repeat(3,1fr);gap:.8rem;margin:0 0 1rem}
+.act{display:flex;flex-direction:column;gap:.25rem;color:var(--ink)!important;text-decoration:none!important;transition:transform .2s,box-shadow .2s,border-color .2s}
+.act:hover{transform:translateY(-3px);border-color:var(--ember);box-shadow:0 12px 26px rgba(255,107,53,.15)}
+.act b{font:700 1.1rem 'Space Grotesk',system-ui;color:var(--ember)}.act span{font-size:.9rem;color:var(--muted)}
+@media (max-width:700px){.actions3{grid-template-columns:1fr}}
+.lessons{list-style:none;padding:0;margin:0 0 1rem}.lessons li{padding:.45rem .5rem;border-radius:10px;transition:background-color .4s}.lessons li.flash{background:rgba(255,182,39,.25)}
+.pc-prog.light{background:rgba(128,128,128,.18);margin:.3rem 0}
 .tagrow{display:flex;flex-wrap:wrap;gap:.35rem}
 .tag{display:inline-block;font:600 .8rem system-ui;padding:.3rem .6rem;border-radius:99px;background:rgba(255,107,53,.1);color:var(--ink)!important;text-decoration:none!important;border:1px solid transparent;transition:transform .15s,background-color .15s}
 .tag:hover{transform:translateY(-1px);background:rgba(255,107,53,.2)}

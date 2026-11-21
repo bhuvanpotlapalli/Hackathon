@@ -7,6 +7,9 @@ import {
   AREAS,
   AVAILABILITY,
   CAREERS,
+  ALL_PATHS,
+  libraryFor,
+  normCareer,
   FORMATS,
   OPP_KINDS,
   COURSE_LIBRARY,
@@ -133,8 +136,8 @@ export async function home(env: Env): Promise<Response> {
     <p class="eyebrow">03 · Learn</p>
     <h2 class="big">Learn</h2>
     <p class="line">Courses from mentors and employers, filtered to your goal.</p>
-    <div class="tagcloud" aria-hidden="true">${["#user research", "#sql databases", "#network security", "#figma", "#java", "#statistics", "#help desk", "#agile", "#linux", "#interview prep"]
-      .map((t, i) => `<span style="--i:${i}">${t}</span>`)
+    <div class="tagcloud" aria-hidden="true">${["#user research", "#sql databases", "#network security", "#figma", "#java", "#statistics", "#cad modeling", "#circuit analysis", "#linux administration", "#interview prep"]
+      .map((t, i) => `<a href="/courses?tag=${encodeURIComponent(t.slice(1))}" style="--i:${i}">${t}</a>`)
       .join("")}</div>
     <a class="btn ghost" href="/courses" style="margin-top:1.4rem">Browse courses</a>
   </div>
@@ -216,7 +219,7 @@ ${error ? `<div class="notice" style="background:#fdecea;border-color:#f5c2bd;co
   <div class="two">
     <div><label for="name">Name</label><input id="name" name="name" required maxlength="80" autocomplete="name"></div>
     <div><label for="headline" id="headlineLabel">Where you are now</label><input id="headline" name="headline" maxlength="120" placeholder="e.g. ASU junior, Graphic Design"></div>
-    <div><label for="career">Career path</label><select id="career" name="career">${options(CAREERS)}</select></div>
+    <div><label for="career">Career path</label><select id="career" name="career">${options(ALL_PATHS)}</select></div>
     <div><label for="school">School or program</label><input id="school" name="school" maxlength="120" placeholder="e.g. Arizona State University"></div>
   </div>
   <label for="courses" id="coursesLabel">Courses you're taking or have taken</label>
@@ -263,7 +266,7 @@ export async function joinSubmit(req: Request, env: Env): Promise<Response> {
   const id = await db.createUser(env.DB, {
     name,
     role,
-    career: pick("career", CAREERS),
+    career: normCareer(str(f, "career", 60)),
     no_degree: f.get("no_degree") ? 1 : 0,
     goal,
     headline: str(f, "headline", 120),
@@ -320,8 +323,8 @@ export async function matches(env: Env, menteeId: number, url: URL): Promise<Res
     .sort((a, b) => b.score - a.score)
     .slice(0, 3);
   // Curated courses for the mentee's path they haven't taken yet, and which mentors took each one.
-  const taken = sharedCourses(COURSE_LIBRARY[mentee.career]?.join(", ") ?? "", mentee.courses);
-  const nextCourses = (COURSE_LIBRARY[mentee.career] ?? COURSE_LIBRARY["Not sure yet"])
+  const taken = sharedCourses(libraryFor(mentee.career).join(", "), mentee.courses);
+  const nextCourses = libraryFor(mentee.career)
     .filter((c) => !taken.includes(c))
     .slice(0, 5)
     .map((course) => ({ course, mentors: mentors.filter((m) => sharedCourses(course, m.courses).length).map((m) => m.name.split(" ")[0]) }));
@@ -611,7 +614,7 @@ export function oppForm(): Response {
 <form method="post" action="/opportunities" class="card">
   <div class="two">
     <div><label for="kind">Type</label><select id="kind" name="kind">${options(OPP_KINDS)}</select></div>
-    <div><label for="career">Career path</label><select id="career" name="career">${options(CAREERS.filter((c) => c !== "Not sure yet"))}</select></div>
+    <div><label for="career">Career path</label><select id="career" name="career">${options(ALL_PATHS.filter((c) => c !== "Not sure yet"))}</select></div>
     <div><label for="title">Title</label><input id="title" name="title" required maxlength="120" placeholder="e.g. Data Analyst Intern"></div>
     <div><label for="org">Organization</label><input id="org" name="org" required maxlength="120"></div>
   </div>
@@ -640,7 +643,7 @@ export async function oppSubmit(req: Request, env: Env): Promise<Response> {
     kind: pick("kind", OPP_KINDS),
     title,
     org,
-    career: pick("career", CAREERS),
+    career: normCareer(str(f, "career", 60)),
     courses: str(f, "courses", 400),
     area: pick("area", AREAS),
     format: pick("format", FORMATS),

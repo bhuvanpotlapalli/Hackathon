@@ -47,6 +47,7 @@ export default {
         if (path === "/courses/new") return courses.courseForm(env, url);
         if (path === "/courses/personal") return personal.personalPage(env, url);
         if ((r = m(/^\/courses\/personal\/(\d+)$/))) return personal.personalDetail(env, +r[1], url);
+        if ((r = m(/^\/courses\/(\d+)$/))) return courses.courseDetail(env, +r[1]);
         if ((r = m(/^\/api\/opp-courses\/(\d+)$/))) return courses.apiOppCourses(env, +r[1]);
         if (path === "/opportunities") return pages.opportunities(env, url);
         if (path === "/opportunities/new") return pages.oppForm();

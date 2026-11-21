@@ -34,8 +34,40 @@ export const CAREERS = [
   "Cybersecurity",
   "IT/Support",
   "Tech Sales & Marketing",
+  "Engineering",
+  "Cloud/DevOps",
+  "Game Design",
+  "Health Tech",
+  "Fintech",
   "Not sure yet",
 ];
+
+/** Engineering is broad: pick a domain (stored as "Engineering · Mechanical"). */
+export const ENG_DOMAINS = ["Mechanical", "Electrical", "Civil", "Chemical", "Biomedical", "Aerospace", "Industrial", "Computer", "Environmental", "Software"];
+
+/** Every selectable path, with engineering expanded into its domains (for forms and filters). */
+export const ALL_PATHS = CAREERS.flatMap((c) => (c === "Engineering" ? ENG_DOMAINS.map((d) => `Engineering · ${d}`) : [c]));
+
+/** The broad path: "Engineering · Civil" -> "Engineering", "Other: Robotics" -> "Other". */
+export function careerBase(c: string): string {
+  return c.startsWith("Engineering") ? "Engineering" : c.startsWith("Other") ? "Other" : c;
+}
+
+/** Cleans a career sent by a browser: known path, an engineering domain, or "Other: <free text>". */
+export function normCareer(v: unknown): string {
+  const s = typeof v === "string" ? v.trim().replace(/[<>]/g, "").slice(0, 60) : "";
+  if (CAREERS.includes(s) || ALL_PATHS.includes(s)) return s;
+  const eng = s.match(/^Engineering\s*·\s*(.{2,30})$/);
+  if (eng) return `Engineering · ${eng[1].trim()}`;
+  const other = s.match(/^Other:\s*(.{2,40})$/);
+  if (other) return `Other: ${other[1].trim()}`;
+  return "Not sure yet";
+}
+
+/** Curated course list for a path, falling back to the broad path, then to the starter list. */
+export function libraryFor(career: string): string[] {
+  return COURSE_LIBRARY[career] ?? COURSE_LIBRARY[careerBase(career)] ?? COURSE_LIBRARY["Not sure yet"];
+}
 export const FUN_INTERESTS = ["Gaming", "Hiking", "Art and crafts", "Reading", "Cooking", "Music", "Sports", "Travel"];
 export const AVAILABILITY = ["Weekday evenings", "Weekends", "Flexible"];
 export const FORMATS = ["Online", "In-person", "Both"];
@@ -159,7 +191,10 @@ export function matchScore(mentee: User, mentor: User, mentorActivePairs: number
   if (mentee.career === mentor.career) {
     score += 30;
     reasons.push(`Same path: ${mentor.career}`);
-  } else if (mentee.career === "Not sure yet") {
+  } else if (careerBase(mentee.career) === "Engineering" && careerBase(mentor.career) === "Engineering") {
+    score += 20;
+    reasons.push(`Both in engineering`);
+  } else if (mentee.career === "Not sure yet" || careerBase(mentee.career) === "Other") {
     score += 10;
     reasons.push(`Can show you ${mentor.career}`);
   }
@@ -258,6 +293,9 @@ export function oppScore(mentee: User, opp: Opportunity): OppMatch {
   if (opp.career === mentee.career) {
     score += 30;
     reasons.push(`Your path: ${opp.career}`);
+  } else if (careerBase(opp.career) === "Engineering" && careerBase(mentee.career) === "Engineering") {
+    score += 20;
+    reasons.push("Engineering role");
   }
   const wanted = splitCourses(opp.courses);
   const have = sharedCourses(opp.courses, mentee.courses);
@@ -284,6 +322,21 @@ export const COURSE_LIBRARY: Record<string, string[]> = {
   Cybersecurity: ["Computer Networking", "Network Security", "Linux Administration", "Ethical Hacking", "Incident Response"],
   "IT/Support": ["Computer Hardware", "Help Desk Fundamentals", "Windows Administration", "Computer Networking"],
   "Tech Sales & Marketing": ["Sales Fundamentals", "Digital Marketing", "Marketing Strategy", "Business Communication"],
+  Engineering: ["Calculus I", "Physics", "Statics", "MATLAB", "CAD Modeling", "Technical Writing"],
+  "Engineering · Mechanical": ["Statics", "Dynamics", "Thermodynamics", "Materials Science", "CAD Modeling", "MATLAB"],
+  "Engineering · Electrical": ["Circuit Analysis", "Digital Logic", "Signals and Systems", "Electronics", "Embedded Systems", "MATLAB"],
+  "Engineering · Civil": ["Statics", "Structural Analysis", "Fluid Mechanics", "AutoCAD", "Surveying", "Construction Management"],
+  "Engineering · Chemical": ["Organic Chemistry", "Thermodynamics", "Mass Transfer", "Process Control", "MATLAB"],
+  "Engineering · Biomedical": ["Physiology", "Biomechanics", "Medical Devices", "Biomaterials", "MATLAB"],
+  "Engineering · Aerospace": ["Dynamics", "Aerodynamics", "Propulsion", "Thermodynamics", "CAD Modeling"],
+  "Engineering · Industrial": ["Statistics", "Operations Research", "Lean Manufacturing", "Supply Chain Management", "Excel"],
+  "Engineering · Computer": ["Digital Logic", "C Programming", "Computer Architecture", "Embedded Systems", "Data Structures and Algorithms"],
+  "Engineering · Environmental": ["Environmental Chemistry", "Water Resources", "Fluid Mechanics", "GIS Mapping"],
+  "Engineering · Software": ["Intro to Java", "Data Structures and Algorithms", "Software Testing", "Databases", "Git and Version Control"],
+  "Cloud/DevOps": ["Linux Administration", "Computer Networking", "AWS Cloud Practitioner", "Docker and Containers", "Python Scripting"],
+  "Game Design": ["Game Design Fundamentals", "Unity", "C# Programming", "3D Modeling", "Level Design"],
+  Fintech: ["Financial Accounting", "Excel", "SQL Databases", "Python for Data Science", "Payments and Banking Systems", "Statistics"],
+  "Health Tech": ["Health Informatics", "Medical Terminology", "SQL Databases", "Statistics", "HIPAA and Privacy"],
   "Not sure yet": ["Intro to Computer Science", "Statistics", "Intro to UX Design", "Computer Networking", "JavaScript"],
 };
 
@@ -296,7 +349,12 @@ export function starterMilestones(career: string, goal: string): string[] {
     Product: ["Write a one-page product brief", "Interview 3 users about a real problem", "Present a roadmap to your mentor"],
     Cybersecurity: ["Set up a home lab", "Complete 5 beginner CTF challenges", "Study for and book Security+"],
     "IT/Support": ["Build and troubleshoot a PC or VM", "Earn a help-desk certification", "Apply to 5 IT support roles"],
+    Engineering: ["Pick a hands-on design project with your mentor", "Build and test a prototype or model", "Write it up as a portfolio case study"],
+    "Cloud/DevOps": ["Deploy one app to the cloud", "Automate it with a CI pipeline", "Earn a cloud fundamentals certification"],
+    "Game Design": ["Make a one-level game prototype", "Playtest it with 5 people", "Publish it on itch.io"],
+    Fintech: ["Learn how payments move between banks", "Build a budget or market data dashboard", "Apply to 5 fintech internships"],
+    "Health Tech": ["Learn one health data standard", "Build a small dashboard from public health data", "Shadow someone in clinical IT"],
     "Tech Sales & Marketing": ["Learn one product deeply and pitch it", "Shadow a sales or marketing call", "Update LinkedIn for tech roles"],
   };
-  return byCareer[career] ?? ["Explore 3 tech roles with your mentor", `Pick one first step toward: ${goal.slice(0, 60)}`, "Make a 90-day plan together"];
+  return byCareer[career] ?? byCareer[careerBase(career)] ?? ["Explore 3 tech roles with your mentor", `Pick one first step toward: ${goal.slice(0, 60)}`, "Make a 90-day plan together"];
 }
