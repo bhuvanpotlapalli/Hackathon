@@ -1,6 +1,6 @@
 # Ember: handoff (where to pick up)
 
-> For any Claude session or teammate picking this up. Last updated: Sat Nov 21, 2026, ~10:30 AM MST.
+> For any Claude session or teammate picking this up. Last updated: Sat Nov 21, 2026, ~10:45 AM MST.
 > **Deadline: submissions close 1:30 PM MST. JS wants everything done by 12:30.**
 
 ## What Ember is
@@ -40,13 +40,14 @@ Local test without a login: `npx wrangler dev -c wrangler.mock.jsonc` then open 
 
 ## Status
 - ✅ **Step 1 done (branch `ember`)**: Home, Join (college+/18+ only, courses field, consent), Matches (top 3 + opportunities that fit), Pair page (flame, milestones, log meeting with flame-grow animation + 🔥 confetti), Campfire (stats, needs attention, relight nudge, before/after bars, print), Opportunities (list, "see fit for" a student, post form, matched students per posting), Reset demo. Smoke-tested locally on every route; type-checks.
-- ⏳ **Step 2 (next): AI with Workers AI**, all with template fallbacks so the demo never breaks:
-  1. `/matches`: one-sentence "why you'll click" per mentor (the page already has an empty `<p class="why" data-mentor="ID">` placeholder per card).
-  2. New pair: AI-suggested 3 milestones based on goal + courses (replace `starterMilestones` call in `pages.choose`).
-  3. `/pair/:id`: "Spark my next meeting" button → 3-question agenda (placeholder `<div id="agenda">` exists).
-  4. `/campfire`: "Write Rise Report" button → sponsor-ready summary from aggregate stats only (placeholder `<div id="rise">` exists).
-  - Model: `@cf/google/gemma-4-26b-a4b-it`, pass `chat_template_kwargs: { enable_thinking: false }`, short `max_tokens` (~200). Free plan = 10,000 neurons/day for the whole team. Wrap every call in an 8 s timeout + template fallback. `env.AI` is optional (undefined in mock mode).
-- ⏳ **Step 3**: README (replace the template; change the live link from `hello-ai` to `fortfein`), video script, submission checklist.
+- ✅ **Step 2 done**: Workers AI in `src/ai.ts` (Gemma 4, thinking off, short answers, 8 s timeout, template fallback):
+  1. `/matches`: "why you'll click" per mentor, loaded by the page from `GET /api/why?mentee=&mentor=`.
+  2. New pair: AI-suggested 3 milestones (`ai.suggestMilestones`, falls back to `starterMilestones`).
+  3. `/pair/:id`: "Spark my next meeting" → `POST /api/agenda/:id`.
+  4. `/campfire`: "Write Rise Report" → `POST /api/rise` (aggregate stats only).
+  - Fallbacks tested locally in mock mode. **Real AI output has NOT been tested yet** (needs Bhuvan's Cloudflare login). After deploying, check `/matches/19`: if the "✨" lines read naturally, AI works; the JSON from `/api/why?mentee=19&mentor=1` shows `"ai": true` when the model answered.
+- ✅ **README** rewritten (live link fixed to `fortfein`). Still to fill in: video link.
+- ⏳ **Next**: deploy and check the live site in a private window, merge `ember` into `main`, record the video (script in the team playbook §12, mention coursework matching + the opportunities board), submit by 1:25.
 
 ## Rules
 - Never push to `main` without JS's OK. Work on the `ember` branch, JS merges.

@@ -1,5 +1,6 @@
 // Every page and form handler. Server-rendered HTML with a little inline JS.
 
+import * as ai from "./ai";
 import * as db from "./db";
 import {
   AREAS,
@@ -230,7 +231,11 @@ ${
     oppFits.length
       ? oppFits.map((o) => oppCard(o.opp, o.score, o.reasons, o.missing)).join("")
       : `<div class="card"><p class="muted">No postings fit yet. <a href="/opportunities">See all opportunities</a>.</p></div>`
-  }</div>`;
+  }</div>
+<script>
+document.querySelectorAll('.why').forEach(function(el){el.textContent='✨ Thinking about why you\'ll click…';
+fetch('/api/why?mentee=${mentee.id}&mentor='+el.dataset.mentor).then(function(r){return r.json()}).then(function(d){el.textContent='✨ '+d.text}).catch(function(){el.textContent=''});});
+</script>`;
   return html(layout("Your matches", body));
 }
 
@@ -252,7 +257,8 @@ export async function choose(req: Request, env: Env): Promise<Response> {
   const mentee = await db.getUser(env.DB, int(f, "mentee", 1, 1e9, 0));
   const mentor = await db.getUser(env.DB, int(f, "mentor", 1, 1e9, 0));
   if (!mentee || !mentor || mentee.role !== "mentee" || mentor.role !== "mentor") return notFound("Match");
-  const pairId = await db.createPair(env.DB, mentor.id, mentee, starterMilestones(mentee.career, mentee.goal));
+  const milestones = (await ai.suggestMilestones(env, mentee, mentor)) ?? starterMilestones(mentee.career, mentee.goal);
+  const pairId = await db.createPair(env.DB, mentor.id, mentee, milestones);
   return redirect(`/pair/${pairId}?new=1`);
 }
 
@@ -291,7 +297,8 @@ ${fromHeat !== null ? `<div class="notice">Meeting logged. Your flame grew from 
         <button class="btn small ${m.done ? "" : "ghost"}" type="submit" aria-label="${m.done ? "Mark not done" : "Mark done"}: ${esc(m.title)}">${m.done ? "✓" : "○"}</button><span>${esc(m.title)}</span></form>`,
         )
         .join("")}
-      <div id="agenda" class="muted" style="margin-top:.8rem"></div>
+      <button class="btn small ghost" style="margin-top:.8rem" onclick="spark(this)">✨ Spark my next meeting</button>
+      <div id="agenda" style="margin-top:.6rem" aria-live="polite"></div>
     </div>
     <form class="card" style="margin-top:1rem" method="post" action="/pair/${pair.id}/log">
       <h2 style="font-size:1.2rem">Log a meeting</h2>
@@ -308,6 +315,13 @@ ${fromHeat !== null ? `<div class="notice">Meeting logged. Your flame grew from 
     </form>
   </div>
 </div>
+<script>
+function spark(btn){btn.disabled=true;btn.textContent='✨ Writing your agenda…';
+fetch('/api/agenda/${pair.id}',{method:'POST'}).then(function(r){return r.json()}).then(function(d){
+var box=document.getElementById('agenda');box.innerHTML='<b>Next meeting agenda</b>';var ol=document.createElement('ol');
+d.lines.forEach(function(l){var li=document.createElement('li');li.textContent=l;ol.appendChild(li)});box.appendChild(ol);
+btn.textContent='✨ Spark another';btn.disabled=false;}).catch(function(){btn.disabled=false;btn.textContent='✨ Spark my next meeting';toast('Could not write the agenda. Try again.')});}
+</script>
 <div class="card" style="margin-top:1rem"><h2 style="font-size:1.2rem">Meeting history</h2>${
     checkins.length
       ? checkins
@@ -396,8 +410,9 @@ ${url.searchParams.get("reset") ? `<div class="notice">Demo data reset.</div>` :
     ${bar("Confidence when they joined", before, "#c9b8d9")}
     ${bar("Confidence after mentoring", after, "var(--ember)")}
     <p class="muted" style="font-size:.85rem">Combined numbers only, no names. ${withData.length} pairs with check-ins.</p>
-    <div id="rise"></div>
-    <button class="btn small ghost no-print" onclick="window.print()">Print Rise Report</button>
+    <div id="rise" aria-live="polite" style="white-space:pre-line;margin:.6rem 0"></div>
+    <div class="row no-print"><button class="btn small" onclick="rise(this)">✨ Write Rise Report</button>
+    <button class="btn small ghost" onclick="window.print()">Print Rise Report</button></div>
   </div>
 </div>
 <h2 style="margin-top:1.5rem">All flames</h2>
@@ -409,6 +424,9 @@ ${url.searchParams.get("reset") ? `<div class="notice">Demo data reset.</div>` :
     )
     .join("")}</div>
 <script>
+function rise(btn){btn.disabled=true;btn.textContent='✨ Writing…';
+fetch('/api/rise',{method:'POST'}).then(function(r){return r.json()}).then(function(d){document.getElementById('rise').textContent=d.text;btn.textContent='✨ Rewrite';btn.disabled=false;})
+.catch(function(){btn.disabled=false;btn.textContent='✨ Write Rise Report';toast('Could not write the report. Try again.')});}
 function relight(id,btn){btn.disabled=true;btn.textContent='Sending…';
 fetch('/nudge/'+id,{method:'POST'}).then(function(r){return r.json()}).then(function(d){toast('🕯️ Nudge saved: "'+d.message+'"');btn.textContent='Nudged ✓';})
 .catch(function(){toast('Could not send the nudge. Try again.');btn.disabled=false;btn.textContent='Send relight nudge';});}
@@ -524,4 +542,53 @@ ${url.searchParams.get("posted") ? `<div class="notice">🔥 Posted! Here are th
   }</div>
 </div>`;
   return html(layout(o.title, body, "/opportunities"));
+}
+
+// ---------------------------------------------------------------- AI JSON endpoints
+export async function apiWhy(env: Env, url: URL): Promise<Response> {
+  const mentee = await db.getUser(env.DB, parseInt(url.searchParams.get("mentee") ?? "", 10) || 0);
+  const mentor = await db.getUser(env.DB, parseInt(url.searchParams.get("mentor") ?? "", 10) || 0);
+  if (!mentee || !mentor) return Response.json({ error: "not found" }, { status: 404 });
+  const r = await ai.whyClick(env, mentee, mentor, matchScore(mentee, mentor, 0).courses);
+  return Response.json(r);
+}
+
+export async function apiAgenda(env: Env, pairId: number): Promise<Response> {
+  const pair = await db.getPair(env.DB, pairId);
+  if (!pair) return Response.json({ error: "not found" }, { status: 404 });
+  const [checkins, milestones] = await Promise.all([db.listCheckins(env.DB, pairId), db.listMilestones(env.DB, pairId)]);
+  const r = await ai.agenda(env, {
+    mentee: pair.mentee_name,
+    mentor: pair.mentor_name,
+    goal: pair.goal,
+    open: milestones.filter((m) => !m.done).map((m) => m.title),
+    lastNext: checkins[0]?.next_step ?? null,
+  });
+  return Response.json(r);
+}
+
+export async function apiRise(env: Env): Promise<Response> {
+  const [pairs, flames, milestones, mentees, opps] = await Promise.all([
+    db.listPairs(env.DB),
+    flamesByPair(env),
+    db.listMilestones(env.DB),
+    db.listMentees(env.DB),
+    db.listOpportunities(env.DB),
+  ]);
+  const rows = pairs.map((p) => ({ p, ...flames.get(p.id)! }));
+  const withData = rows.filter((r) => r.checkins.length);
+  const avg = (xs: number[]) => (xs.length ? xs.reduce((a, b) => a + b, 0) / xs.length : 0);
+  const monthAgo = Date.now() - 30 * 86400000;
+  const r = await ai.riseReport(env, {
+    pairs: rows.length,
+    activePct: Math.round((100 * rows.filter((r) => r.flame.heat >= 40).length) / (rows.length || 1)),
+    meetings30: rows.reduce((s, r) => s + r.checkins.filter((c) => new Date(c.met_at).getTime() >= monthAgo).length, 0),
+    before: avg(withData.map((r) => r.p.start_confidence)),
+    after: avg(withData.map((r) => r.checkins[0].confidence)),
+    milestonesDone: milestones.filter((m) => m.done).length,
+    milestonesTotal: milestones.length,
+    noDegreePct: Math.round((100 * mentees.filter((m) => m.no_degree).length) / (mentees.length || 1)),
+    opportunities: opps.length,
+  });
+  return Response.json(r);
 }

@@ -42,6 +42,7 @@ export default {
         if (path === "/opportunities") return pages.opportunities(env, url);
         if (path === "/opportunities/new") return pages.oppForm();
         if ((r = m(/^\/opportunities\/(\d+)$/))) return pages.oppDetail(env, +r[1], url);
+        if (path === "/api/why") return pages.apiWhy(env, url);
       }
 
       if (method === "POST") {
@@ -51,6 +52,8 @@ export default {
         if ((r = m(/^\/pair\/(\d+)\/milestone\/(\d+)$/))) return pages.milestone(env, +r[1], +r[2]);
         if ((r = m(/^\/nudge\/(\d+)$/))) return pages.nudge(env, +r[1]);
         if (path === "/opportunities") return pages.oppSubmit(request, env);
+        if ((r = m(/^\/api\/agenda\/(\d+)$/))) return pages.apiAgenda(env, +r[1]);
+        if (path === "/api/rise") return pages.apiRise(env);
         if (path === "/admin/reset") {
           await resetDb(env.DB);
           return new Response(null, { status: 303, headers: { location: "/campfire?reset=1" } });
