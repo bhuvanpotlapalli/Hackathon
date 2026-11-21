@@ -15,7 +15,7 @@
 	// Ember's database. Run `npx wrangler d1 create ember-db` once and paste the real
 	// database_id below (tables + demo data are created automatically on first request).
 	"d1_databases": [
-		{ "binding": "DB", "database_name": "ember-db", "database_id": "PASTE-DATABASE-ID-HERE" }
+		{ "binding": "DB", "database_name": "ember-db", "database_id": "5d7fe360-5515-45b4-8a61-a4b84979ae18" }
 	]
 	/**
 	 * Smart Placement
