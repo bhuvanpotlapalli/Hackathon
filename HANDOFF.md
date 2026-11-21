@@ -67,3 +67,5 @@ Local test without a login: `npx wrangler dev -c wrangler.mock.jsonc` then open 
 - Never push to `main` without JS's OK. Work on the `ember` branch, JS merges.
 - Run `npx tsc --noEmit` before every push.
 - Demo data is fictional; say so in the README.
+
+- ~11:25 (final audit): README rewritten for TechWomenAZ + ember chat, with 4 screenshots in `docs/`. Test now checks the home page and /health (runs against the mock config, `npx vitest run` passes). package name is `fortfein`. No app code changed, so no redeploy needed. Remaining: merge PR #1 to main, record video, add its link to the README, submit by 1:25.
