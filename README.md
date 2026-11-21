@@ -18,7 +18,7 @@ TechWomenAZ helps college students and adults (18+, not K-12) build careers in t
 5. **Opportunities board** (`/opportunities`). Employers and partners post internships, jobs and mentorship programs with the coursework they want. Each student's fit is scored by coursework coverage, mentees see the openings they fit, and posters see their best-fit students.
 6. **Courses** (`/courses`). Mentors share classes they teach or recommend, and employers add prep courses for their postings, each with filter tags. Students filter by path, level, cost, format and tags, or type their goal to see the best-fit courses first. On every opportunity, **ember (Workers AI) reads what the posting wants and picks the courses that cover it**, with the employer's own prep courses shown first.
 7. **A fun question.** ember also asks what you're into off the clock (gaming, hiking, music…). Shared interests add up to 10 points to a match, as a tiebreaker after coursework.
-8. **Design.** The home page is a click-through slideshow (Start → Match → Meet → Launch → Your turn) with sweeping transitions, arrow keys and swipe; on the Meet slide you can feed the fire. Light/dark toggle, page-to-page transitions tied to each button, clickable flames that throw sparks, and a phone-friendly layout.
+8. **Design.** The home page is a full-screen scroll story (Start → Why → Match → Meet → Learn → Launch → Join) with drifting embers, a glowing thread that connects every section as you scroll, and a fire that grows as you scroll through Meet. Light/dark toggle, page-to-page transitions tied to each button, clickable flames that throw sparks, and a phone-friendly layout.
 
 | Matches by shared coursework | Chat signup with ember | Campfire dashboard |
 |---|---|---|
