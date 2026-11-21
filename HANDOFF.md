@@ -50,6 +50,7 @@ Local test without a login: `npx wrangler dev -c wrangler.mock.jsonc` then open 
 - ⏳ **Next**: deploy and check the live site in a private window, merge `ember` into `main`, record the video (script in the team playbook §12, mention coursework matching + the opportunities board), submit by 1:25.
 
 ## Rules
+- **JS wants every reply to end with a TODO list of what they should do next.**
 - Never push to `main` without JS's OK. Work on the `ember` branch, JS merges.
 - Run `npx tsc --noEmit` before every push.
 - Demo data is fictional; say so in the README.
