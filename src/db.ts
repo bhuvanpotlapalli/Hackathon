@@ -1,3 +1,4 @@
+import { COURSE_SCHEMA, courseSeed } from "./courses";
 // D1 schema, demo seed data, and every query Ember uses.
 // All queries use prepare(...).bind(...); user input is never concatenated into SQL.
 
@@ -69,6 +70,7 @@ export const SCHEMA = [
   )`,
   `CREATE INDEX IF NOT EXISTS idx_checkins_pair ON checkins(pair_id)`,
   `CREATE INDEX IF NOT EXISTS idx_pairs_mentee ON pairs(mentee_id)`,
+  COURSE_SCHEMA,
 ];
 
 // ---------- Demo seed data (fictional people, labelled as demo data in the README) ----------
@@ -223,6 +225,8 @@ export function ensureDb(db: D1Database): Promise<void> {
       await db.prepare(`ALTER TABLE users ADD COLUMN interests TEXT NOT NULL DEFAULT ''`).run().catch(() => {});
       const row = await db.prepare(`SELECT COUNT(*) AS n FROM users`).first<{ n: number }>();
       if (!row || row.n === 0) await db.batch(seedStatements(db));
+      const cc = await db.prepare(`SELECT COUNT(*) AS n FROM courses`).first<{ n: number }>();
+      if (!cc || cc.n === 0) await db.batch(courseSeed(db));
     })().catch((e) => {
       ready = null; // retry on the next request
       throw e;
@@ -234,7 +238,7 @@ export function ensureDb(db: D1Database): Promise<void> {
 /** Wipes everything and reloads the demo data (admin "Reset demo" button). */
 export async function resetDb(db: D1Database): Promise<void> {
   await db.batch(
-    ["DROP TABLE IF EXISTS opportunities", "DROP TABLE IF EXISTS nudges", "DROP TABLE IF EXISTS checkins", "DROP TABLE IF EXISTS milestones", "DROP TABLE IF EXISTS pairs", "DROP TABLE IF EXISTS users"].map((s) => db.prepare(s)),
+    ["DROP TABLE IF EXISTS courses", "DROP TABLE IF EXISTS opportunities", "DROP TABLE IF EXISTS nudges", "DROP TABLE IF EXISTS checkins", "DROP TABLE IF EXISTS milestones", "DROP TABLE IF EXISTS pairs", "DROP TABLE IF EXISTS users"].map((s) => db.prepare(s)),
   );
   ready = null;
   await ensureDb(db);

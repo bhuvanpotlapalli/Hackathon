@@ -16,7 +16,9 @@ TechWomenAZ helps college students and adults (18+, not K-12) build careers in t
    `heat = clamp(100 − 4 × days since last meeting + 5 × weekly streak, 0, 100)` → Blazing / Glowing / Flickering / Embers. Every pair gets 3 AI-suggested milestones, and "Write my next meeting agenda" drafts the next meeting.
 4. **The Campfire** (admin, `/campfire`). Every pair as a flame, weakest first, a "Needs attention" list with one-click relight nudges, program stats, and a before/after confidence **Rise Report** (AI writes a sponsor-ready summary from combined numbers only, and is told never to invent numbers).
 5. **Opportunities board** (`/opportunities`). Employers and partners post internships, jobs and mentorship programs with the coursework they want. Each student's fit is scored by coursework coverage, mentees see the openings they fit, and posters see their best-fit students.
-6. **Design.** The home page is a scroll journey (Match → Meet → Launch → Your turn) where the fire grows as you scroll. Light/dark toggle, page-to-page transitions tied to each button, clickable flames that throw sparks, and a phone-friendly layout.
+6. **Courses** (`/courses`). Mentors share classes they teach or recommend, and employers add prep courses for their postings, each with filter tags. Students filter by path, level, cost, format and tags, or type their goal to see the best-fit courses first. On every opportunity, **ember (Workers AI) reads what the posting wants and picks the courses that cover it**, with the employer's own prep courses shown first.
+7. **A fun question.** ember also asks what you're into off the clock (gaming, hiking, music…). Shared interests add up to 10 points to a match, as a tiebreaker after coursework.
+8. **Design.** The home page is a click-through slideshow (Start → Match → Meet → Launch → Your turn) with sweeping transitions, arrow keys and swipe; on the Meet slide you can feed the fire. Light/dark toggle, page-to-page transitions tied to each button, clickable flames that throw sparks, and a phone-friendly layout.
 
 | Matches by shared coursework | Chat signup with ember | Campfire dashboard |
 |---|---|---|
@@ -31,17 +33,19 @@ TechWomenAZ helps college students and adults (18+, not K-12) build careers in t
 | Availability | 10 | | |
 | Format / area | 5 | | |
 | Mentor has open capacity | 10 | | |
+| Shared fun interests | up to 10 (total capped at 100) | | |
 
 ## Tech stack
 - **Cloudflare Workers** (TypeScript, no framework): server-rendered pages + JSON endpoints, one deploy.
 - **Cloudflare D1** (SQLite): users, pairs, milestones, check-ins, nudges, opportunities.
-- **Workers AI**, model **`@cf/google/gemma-4-26b-a4b-it`** (thinking off, short answers): ember's chat reactions, "why you'll click" match explanations, milestones, meeting agendas, the Rise Report. All AI calls run in the Worker, never in the browser. Every call has an 8-second timeout and a template fallback, so the app never breaks.
+- **Workers AI**, model **`@cf/google/gemma-4-26b-a4b-it`** (thinking off, short answers): ember's chat reactions, matching courses to each opportunity's wants, "why you'll click" match explanations, milestones, meeting agendas, the Rise Report. All AI calls run in the Worker, never in the browser. Every call has an 8-second timeout and a template fallback, so the app never breaks.
 - View Transitions API and plain CSS/JS for the animations (no libraries).
 
 | File | Purpose |
 |---|---|
 | `src/index.ts` | Router |
 | `src/chat.ts` | ember chat signup |
+| `src/courses.ts` | Course library, filters, ember's course picks for opportunities |
 | `src/pages.ts` | Pages, forms, JSON endpoints |
 | `src/db.ts` | Schema, demo seed data, queries (all parameterized) |
 | `src/logic.ts` | Flame, match and opportunity-fit formulas, curated course library |
@@ -62,8 +66,8 @@ npx wrangler deploy
 Tables and demo data are created automatically on the first request. The **Reset demo** button on `/campfire` reloads the demo data. Try `/matches/19` (Elena, a UX mentee) for the demo.
 
 ## Status
-- ✅ **Finished:** ember chat signup with curated courses, classic signup form, coursework matching, pairs, milestones, meeting logs, flames, Campfire dashboard, relight nudges (saved), Rise Report, opportunities board with coursework fit, every AI feature with fallbacks, light/dark mode, mobile layout.
-- 🧪 **Mocked:** nudges are saved and shown, not emailed. There are no logins, so anyone with a link can open any page. People, pairs and postings are **fictional demo data** (postings are marked "(demo)").
+- ✅ **Finished:** ember chat signup with curated courses, classic signup form, coursework matching, pairs, milestones, meeting logs, flames, Campfire dashboard, relight nudges (saved), Rise Report, opportunities board with coursework fit, course library with filters, AI course picks per opportunity, every AI feature with fallbacks, light/dark mode, mobile layout.
+- 🧪 **Mocked:** nudges are saved and shown, not emailed. There are no logins, so anyone with a link can open any page. People, pairs and postings are **fictional demo data** (postings and courses are marked "(demo)" or credited to demo people).
 - 🔜 **Next:** logins for mentors, mentees and admins; real email/SMS nudges; Speed Spark matching at live events; "Pass the Torch" (mentees who reach their goal become mentors); a mentor course library with public/members-only sharing.
 
 ## Assumptions

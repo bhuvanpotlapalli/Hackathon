@@ -2,6 +2,7 @@
 
 import * as ai from "./ai";
 import * as db from "./db";
+import { oppCoursesBlock } from "./courses";
 import {
   AREAS,
   AVAILABILITY,
@@ -346,7 +347,7 @@ function oppCard(o: import("./logic").Opportunity, score?: number, reasons: stri
   <div style="font-size:.85rem"><b>Wants:</b> ${esc(o.courses) || "No specific courses"}</div>
   ${reasons.length ? `<div style="margin-top:.4rem">${chips(reasons, "sage")}</div>` : ""}
   ${missing.length ? `<div class="muted" style="font-size:.85rem;margin-top:.3rem">To boost your fit: ${esc(missing.join(", "))}</div>` : ""}
-  <div class="row" style="margin-top:.6rem"><a class="btn small ghost" href="/opportunities/${o.id}">See matched students</a>${/^https?:\/\//.test(o.link) ? `<a class="btn small" href="${esc(o.link)}" target="_blank" rel="noopener">Apply</a>` : ""}</div>
+  <div class="row" style="margin-top:.6rem"><a class="btn small ghost" href="/opportunities/${o.id}">Students and courses</a>${/^https?:\/\//.test(o.link) ? `<a class="btn small" href="${esc(o.link)}" target="_blank" rel="noopener">Apply</a>` : ""}</div>
 </div>`;
 }
 
@@ -622,7 +623,7 @@ export async function oppDetail(env: Env, id: number, url: URL): Promise<Respons
     .sort((a, b) => b.r.score - a.r.score)
     .slice(0, 8);
   const body = `
-${url.searchParams.get("posted") ? `<div class="notice">Posted. These students have the coursework it asks for.</div>` : ""}
+${url.searchParams.get("posted") ? `<div class="notice">Posted. These students have the coursework it asks for. <a href="/courses/new?opp=${o.id}">Add a prep course</a> to help them get ready.</div>` : ""}${url.searchParams.get("course") ? `<div class="notice">Course added to this posting.</div>` : ""}
 <p><a href="/opportunities">← All opportunities</a></p>
 <div class="two" style="align-items:start">
   ${oppCard(o)}
@@ -638,7 +639,8 @@ ${url.searchParams.get("posted") ? `<div class="notice">Posted. These students h
           .join("")
       : `<p class="muted">No students match yet. They'll appear as people join.</p>`
   }</div>
-</div>`;
+</div>
+${oppCoursesBlock(o.id)}`;
   return html(layout(o.title, body, "/opportunities"));
 }
 

@@ -1,3 +1,4 @@
+import * as courses from "./courses";
 // Ember: mentorships that don't fizzle out. Built for TechWomenAZ at FireBytes 2026.
 // One Cloudflare Worker: routes requests to server-rendered pages (pages.ts),
 // stores data in D1 (db.ts), and uses the flame + match formulas in logic.ts.
@@ -41,6 +42,9 @@ export default {
         if ((r = m(/^\/matches\/(\d+)$/))) return pages.matches(env, +r[1], url);
         if ((r = m(/^\/pair\/(\d+)$/))) return pages.pairPage(env, +r[1], url);
         if (path === "/campfire") return pages.campfire(env, url);
+        if (path === "/courses") return courses.coursesPage(env, url);
+        if (path === "/courses/new") return courses.courseForm(env, url);
+        if ((r = m(/^\/api\/opp-courses\/(\d+)$/))) return courses.apiOppCourses(env, +r[1]);
         if (path === "/opportunities") return pages.opportunities(env, url);
         if (path === "/opportunities/new") return pages.oppForm();
         if ((r = m(/^\/opportunities\/(\d+)$/))) return pages.oppDetail(env, +r[1], url);
@@ -56,6 +60,7 @@ export default {
         if ((r = m(/^\/pair\/(\d+)\/milestone\/(\d+)$/))) return pages.milestone(env, +r[1], +r[2]);
         if ((r = m(/^\/nudge\/(\d+)$/))) return pages.nudge(env, +r[1]);
         if (path === "/opportunities") return pages.oppSubmit(request, env);
+        if (path === "/courses") return courses.courseSubmit(request, env);
         if ((r = m(/^\/api\/agenda\/(\d+)$/))) return pages.apiAgenda(env, +r[1]);
         if (path === "/api/rise") return pages.apiRise(env);
         if (path === "/admin/reset") {
