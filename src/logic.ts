@@ -21,6 +21,8 @@ export interface User {
   area: string;
   confidence: number;
   capacity: number;
+  /** Fun interests outside tech, comma-separated (e.g. "Hiking, Gaming"). */
+  interests: string;
   created_at: string;
 }
 
@@ -34,6 +36,7 @@ export const CAREERS = [
   "Tech Sales & Marketing",
   "Not sure yet",
 ];
+export const FUN_INTERESTS = ["Gaming", "Hiking", "Art and crafts", "Reading", "Cooking", "Music", "Sports", "Travel"];
 export const AVAILABILITY = ["Weekday evenings", "Weekends", "Flexible"];
 export const FORMATS = ["Online", "In-person", "Both"];
 export const AREAS = ["Phoenix", "Scottsdale", "East Valley", "West Valley", "Online only"];
@@ -147,6 +150,7 @@ export interface MatchResult {
  * + 10 availability overlaps
  * +  5 format/area works
  * + 10 mentor has open capacity
+ * + up to 10 shared fun interests (tiebreaker; total capped at 100)
  */
 export function matchScore(mentee: User, mentor: User, mentorActivePairs: number): MatchResult {
   let score = 0;
@@ -202,6 +206,14 @@ export function matchScore(mentee: User, mentor: User, mentorActivePairs: number
   if (open > 0) {
     score += 10;
     reasons.push(`${open} open spot${open > 1 ? "s" : ""}`);
+  }
+
+  // Fun tiebreaker: shared interests outside tech (+5 each, up to 10).
+  const mine = new Set(splitCourses(mentee.interests ?? "").map((x) => x.toLowerCase()));
+  const fun = splitCourses(mentor.interests ?? "").filter((x) => mine.has(x.toLowerCase()));
+  if (fun.length) {
+    score += Math.min(10, fun.length * 5);
+    reasons.push(`Both into ${fun.slice(0, 2).join(" and ").toLowerCase()}`);
   }
 
   if (mentor.no_degree && mentee.no_degree) reasons.push("Also started without a tech degree");

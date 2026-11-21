@@ -19,6 +19,7 @@ export const SCHEMA = [
     area TEXT NOT NULL,
     confidence INTEGER NOT NULL DEFAULT 5,
     capacity INTEGER NOT NULL DEFAULT 0,
+    interests TEXT NOT NULL DEFAULT '',
     is_demo INTEGER NOT NULL DEFAULT 0,
     created_at TEXT NOT NULL
   )`,
@@ -72,7 +73,7 @@ export const SCHEMA = [
 
 // ---------- Demo seed data (fictional people, labelled as demo data in the README) ----------
 
-type SeedUser = Omit<User, "id" | "created_at">;
+type SeedUser = Omit<User, "id" | "created_at" | "interests">;
 
 // Mentors list courses they've taken or teach, so mentees get someone who has been through their classes.
 const MENTORS: SeedUser[] = [
@@ -154,17 +155,28 @@ function iso(daysAgo: number, now: number): string {
 }
 
 /** Builds the seed statements. Dates are relative to "now" so flames always look right. */
+
+// Fun "off the clock" interests, used as a small tiebreaker in matching.
+const FUN: Record<string, string> = {
+  "Dana Ruiz": "Hiking, Art and crafts", "Priya Natarajan": "Gaming, Cooking", "Marcus Bell": "Sports, Gaming", "Lena Okafor": "Reading, Hiking",
+  "Sofia Martinez": "Travel, Cooking", "James Whitehorse": "Music, Sports", "Aisha Rahman": "Music, Travel", "Kevin Tran": "Cooking, Gaming",
+  "Maya Chen": "Art and crafts, Music", "Rosa Delgado": "Reading, Cooking", "Tyler Brooks": "Gaming, Sports", "Jordan Lee": "Gaming, Music",
+  "Grace Kim": "Reading, Travel", "Andre Wilson": "Sports, Music", "Nina Patel": "Gaming, Hiking", "Carmen Lopez": "Travel, Music",
+  "Sam Rivera": "Cooking, Music", "Olivia Grant": "Reading, Hiking", "Elena Vasquez": "Hiking, Art and crafts", "Ben Carter": "Music, Cooking",
+  "Hannah Brooks": "Art and crafts, Travel", "Daniel Okoye": "Reading, Sports", "Maria Santos": "Gaming, Travel", "Ray Castillo": "Hiking, Gaming",
+  "Tasha Greene": "Music, Cooking", "Nora Klein": "Reading, Travel", "Luis Romero": "Sports, Travel",
+};
 export function seedStatements(db: D1Database): D1PreparedStatement[] {
   const now = Date.now();
   const stmts: D1PreparedStatement[] = [];
   const insertUser = db.prepare(
-    `INSERT INTO users (id, name, role, career, no_degree, goal, headline, courses, school, availability, format, area, confidence, capacity, is_demo, created_at)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1, ?)`,
+    `INSERT INTO users (id, name, role, career, no_degree, goal, headline, courses, school, availability, format, area, confidence, capacity, interests, is_demo, created_at)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1, ?)`,
   );
   const all = [...MENTORS, ...MENTEES, ...EXTRA_MENTORS];
   all.forEach((u, i) => {
     stmts.push(
-      insertUser.bind(i + 1, u.name, u.role, u.career, u.no_degree, u.goal, u.headline, u.courses, u.school, u.availability, u.format, u.area, u.confidence, u.capacity, iso(70, now)),
+      insertUser.bind(i + 1, u.name, u.role, u.career, u.no_degree, u.goal, u.headline, u.courses, u.school, u.availability, u.format, u.area, u.confidence, u.capacity, FUN[u.name] ?? "", iso(70, now)),
     );
   });
 
@@ -207,6 +219,8 @@ export function ensureDb(db: D1Database): Promise<void> {
   if (!ready) {
     ready = (async () => {
       await db.batch(SCHEMA.map((s) => db.prepare(s)));
+      // Older databases: add the interests column if it's missing.
+      await db.prepare(`ALTER TABLE users ADD COLUMN interests TEXT NOT NULL DEFAULT ''`).run().catch(() => {});
       const row = await db.prepare(`SELECT COUNT(*) AS n FROM users`).first<{ n: number }>();
       if (!row || row.n === 0) await db.batch(seedStatements(db));
     })().catch((e) => {
@@ -316,13 +330,13 @@ export async function listMilestones(db: D1Database, pairId?: number) {
   return results;
 }
 
-export async function createUser(db: D1Database, u: Omit<User, "id" | "created_at">): Promise<number> {
+export async function createUser(db: D1Database, u: Omit<User, "id" | "created_at" | "interests"> & { interests?: string }): Promise<number> {
   const row = await db
     .prepare(
-      `INSERT INTO users (name, role, career, no_degree, goal, headline, courses, school, availability, format, area, confidence, capacity, created_at)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?) RETURNING id`,
+      `INSERT INTO users (name, role, career, no_degree, goal, headline, courses, school, availability, format, area, confidence, capacity, interests, created_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?) RETURNING id`,
     )
-    .bind(u.name, u.role, u.career, u.no_degree, u.goal, u.headline, u.courses, u.school, u.availability, u.format, u.area, u.confidence, u.capacity, new Date().toISOString())
+    .bind(u.name, u.role, u.career, u.no_degree, u.goal, u.headline, u.courses, u.school, u.availability, u.format, u.area, u.confidence, u.capacity, u.interests ?? "", new Date().toISOString())
     .first<{ id: number }>();
   return row!.id;
 }

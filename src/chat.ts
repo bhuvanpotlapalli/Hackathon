@@ -4,7 +4,7 @@
 
 import * as ai from "./ai";
 import * as db from "./db";
-import { AREAS, AVAILABILITY, CAREERS, COURSE_LIBRARY, FORMATS, clamp } from "./logic";
+import { AREAS, AVAILABILITY, CAREERS, COURSE_LIBRARY, FORMATS, FUN_INTERESTS, clamp } from "./logic";
 import type { Env } from "./pages";
 import { html, layout } from "./ui";
 
@@ -29,7 +29,7 @@ const GOAL_IDEAS: Record<string, string[]> = {
 };
 
 export function chatPage(): Response {
-  const cfg = JSON.stringify({ careers: CAREERS, interests: INTERESTS, courses: COURSE_LIBRARY, goals: GOAL_IDEAS, availability: AVAILABILITY, formats: FORMATS, areas: AREAS }).replace(/</g, "\\u003c");
+  const cfg = JSON.stringify({ fun: FUN_INTERESTS, careers: CAREERS, interests: INTERESTS, courses: COURSE_LIBRARY, goals: GOAL_IDEAS, availability: AVAILABILITY, formats: FORMATS, areas: AREAS }).replace(/</g, "\\u003c");
   const body = `
 <div class="chatwrap">
   <div class="chathead">
@@ -56,7 +56,7 @@ function clear(){dock.innerHTML=''}
 function chips(list,onPick,opts){clear();opts=opts||{};var row=el('div','chips');list.forEach(function(item,i){var label=Array.isArray(item)?item[0]:item;var b=el('button','chip-btn',label);b.type='button';b.style.animationDelay=(i*40)+'ms';
   b.onclick=function(){if(opts.multi){b.classList.toggle('on');b.setAttribute('aria-pressed',b.classList.contains('on'));count();return}clear();me(label);onPick(item)};if(opts.multi)b.setAttribute('aria-pressed','false');row.appendChild(b)});dock.appendChild(row);
   if(opts.multi){var other=el('input');other.placeholder=opts.placeholder||'Add your own (comma-separated)';other.className='chat-in';dock.appendChild(other);
-    var go=el('button','btn',opts.done||'Done');go.type='button';var hint=el('div','chat-hint');function count(){var n=row.querySelectorAll('.on').length;go.textContent=n?('Done · '+n+' picked'):(opts.done||'Done');if(n)hint.textContent=''}
+    var go=el('button','btn',opts.done||'Done');go.type='button';var hint=el('div','chat-hint');function count(){var n=row.querySelectorAll('.on').length;go.textContent=(opts.done||'Done')+(n?' · '+n+' picked':'');if(n)hint.textContent=''}
     go.onclick=function(){var picked=[].slice.call(row.querySelectorAll('.on')).map(function(b){return b.textContent});
       other.value.split(',').map(function(s){return s.trim()}).filter(Boolean).forEach(function(s){picked.push(s)});if(!picked.length&&!opts.allowEmpty){hint.textContent='Tap at least one class, or type your own.';other.focus();return}clear();me(picked.length?picked.join(', '):'None yet');onPick(picked)};other.addEventListener('input',function(){if(other.value.trim())hint.textContent=''});dock.appendChild(go);dock.appendChild(hint)}}
 function ask(placeholder,onAnswer,suggest){clear();var f=el('form','askrow');var i=el('input');i.className='chat-in';i.placeholder=placeholder;i.maxLength=200;i.required=true;i.setAttribute('aria-label',placeholder);
@@ -66,6 +66,13 @@ function ask(placeholder,onAnswer,suggest){clear();var f=el('form','askrow');var
 function react(step,answer){return fetch('/api/chat/react',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({step:step,answer:answer,profile:P})})
   .then(function(r){return r.json()}).then(function(d){return d.text}).catch(function(){return ''})}
 
+function howMany(onPick){clear();var w=el('div','howmany');var big=el('div','hm-big','2');var r=el('input');r.type='range';r.min='1';r.max='10';r.value='2';r.className='hm-range';r.setAttribute('aria-label','Mentees, slider');
+  var n=el('input');n.type='number';n.min='1';n.max='20';n.value='2';n.className='chat-in hm-num';n.setAttribute('aria-label','Mentees, type a number');
+  function set(v,src){v=Math.max(1,Math.min(20,Math.round(+v||1)));big.textContent=v;big.classList.remove('bump');void big.offsetWidth;big.classList.add('bump');if(src!=='r')r.value=Math.min(10,v);if(src!=='n')n.value=v;r.style.setProperty('--p',((Math.min(10,v)-1)/9*100)+'%')}
+  r.oninput=function(){set(r.value,'r')};n.oninput=function(){if(n.value!=='')set(n.value,'n')};set(2);
+  var row=el('div','hm-row');row.appendChild(r);row.appendChild(n);var go=el('button','btn','That many');go.type='button';
+  go.onclick=function(){var v=Math.max(1,Math.min(20,Math.round(+n.value||+r.value||1)));clear();me(v+' mentee'+(v>1?'s':''));onPick(v)};
+  w.appendChild(big);w.appendChild(row);w.appendChild(go);dock.appendChild(w)}
 async function run(){
   progress();
   await bot("Hey, I'm ember 🔥");
@@ -98,9 +105,13 @@ async function goal(g){P.goal=g;progress();
   chips(C.availability,async function(a){P.availability=a;progress();
     await bot('And where do you want to meet?');
     chips(['Online','Phoenix','Scottsdale','East Valley','West Valley'],async function(w){if(w==='Online'){P.format='Online';P.area='Online only'}else{P.format='Both';P.area=w}progress();
-      if(P.role==='mentor'){await bot('How many mentees can you take on?');chips(['1','2','3'],function(n){P.capacity=+n;consent()})}
-      else{await bot('How confident do you feel about tech right now? 1 to 10.');chips(['1','2','3','4','5','6','7','8','9','10'],function(n){P.confidence=+n;consent()})}
+      if(P.role==='mentor'){await bot('How many mentees can you take on? Slide or type it.');howMany(function(n){P.capacity=n;fun()})}
+      else{await bot('How confident do you feel about tech right now? 1 to 10.');chips(['1','2','3','4','5','6','7','8','9','10'],function(n){P.confidence=+n;fun()})}
     })})}
+async function fun(){progress();
+  await bot('Fun one! Off the clock, what are you into? Pick any.');
+  chips(C.fun,async function(picked){P.interests=picked;progress();
+    await bot(picked.length?'Love it. That helps us find someone you’ll actually click with.':'All good, mystery mode it is.');consent()},{multi:true,allowEmpty:true,done:'That’s me',placeholder:'Something else? (comma-separated)'})}
 async function consent(){progress();
   await bot("Last thing: you're 18+ and OK with us saving your answers to run the program?");
   chips(["I'm 18+ and that's fine",'Not right now'],async function(c){
@@ -167,7 +178,12 @@ export async function chatFinish(req: Request, env: Env): Promise<Response> {
     format: pick(b.format, FORMATS, "Both"),
     area: pick(b.area, AREAS, "Phoenix"),
     confidence: clamp(Number(b.confidence) || 5, 1, 10),
-    capacity: role === "mentor" ? clamp(Number(b.capacity) || 2, 1, 3) : 0,
+    capacity: role === "mentor" ? clamp(Math.round(Number(b.capacity)) || 2, 1, 20) : 0,
+    interests: (Array.isArray(b.interests) ? b.interests : [])
+      .map((c) => txt(c, 30))
+      .filter(Boolean)
+      .slice(0, 8)
+      .join(", "),
   });
   return Response.json({ id, url: role === "mentor" ? `/mentor/${id}` : `/matches/${id}?new=1` });
 }

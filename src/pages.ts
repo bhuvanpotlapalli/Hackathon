@@ -165,7 +165,7 @@ ${error ? `<div class="notice" style="background:#fdecea;border-color:#f5c2bd;co
     <div><label for="availability">Availability</label><select id="availability" name="availability">${options(AVAILABILITY)}</select></div>
     <div><label for="format">Meeting format</label><select id="format" name="format">${options(FORMATS, "Both")}</select></div>
     <div><label for="area">Area</label><select id="area" name="area">${options(AREAS)}</select></div>
-    <div id="capBox" style="display:none"><label for="capacity">How many mentees can you take?</label><select id="capacity" name="capacity">${options(["1", "2", "3"], "2")}</select></div>
+    <div id="capBox" style="display:none"><label for="capacity">How many mentees can you take?</label><div class="hm-row"><input class="hm-range" type="range" min="1" max="10" value="2" aria-label="Mentees, slider" oninput="capacity.value=this.value;this.style.setProperty('--p',(this.value-1)/9*100+'%')"><input class="hm-num" id="capacity" name="capacity" type="number" min="1" max="20" value="2" oninput="this.previousElementSibling.value=Math.min(10,this.value||1)"></div></div>
   </div>
   <label for="confidence" id="confLabel">How confident do you feel about your tech career? <output id="confOut">5</output>/10</label>
   <input id="confidence" name="confidence" type="range" min="1" max="10" value="5" oninput="confOut.value=this.value">
@@ -210,7 +210,7 @@ export async function joinSubmit(req: Request, env: Env): Promise<Response> {
     format: pick("format", FORMATS),
     area: pick("area", AREAS),
     confidence: int(f, "confidence", 1, 10, 5),
-    capacity: role === "mentor" ? int(f, "capacity", 1, 3, 2) : 0,
+    capacity: role === "mentor" ? int(f, "capacity", 1, 20, 2) : 0,
   });
   return redirect(role === "mentor" ? `/mentor/${id}` : `/matches/${id}`);
 }

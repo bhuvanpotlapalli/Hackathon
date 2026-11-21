@@ -1,3 +1,4 @@
+import { LOGO_MARK, FAVICON_PNG } from "./logo";
 // Shared layout, styles, and small HTML helpers.
 
 import { STATUS_LABEL, type Flame, type Status } from "./logic";
@@ -92,7 +93,7 @@ nav{position:sticky;top:0;z-index:7;background:var(--plum);box-shadow:none;borde
 nav a:not(.brand){opacity:.78;border-bottom:0!important;background:linear-gradient(#fff,#fff) no-repeat left calc(100% - 2px)/0 1px;transition:background-size .15s ease,opacity .15s}
 nav a:not(.brand):hover{opacity:1;background-size:100% 1px}
 nav a[aria-current]{opacity:1;background:linear-gradient(var(--gold),var(--gold)) no-repeat left bottom/100% 2px}
-.brand{letter-spacing:-.02em}.brand .ico{margin-right:.15rem}
+.brand{letter-spacing:-.02em;display:inline-flex;align-items:center;gap:.45rem}.brand .logo{width:30px;height:30px;transition:transform .35s cubic-bezier(.34,1.56,.64,1)}.brand:hover .logo{transform:rotate(-8deg) scale(1.12)}
 .accent{color:var(--ember)}
 .hero .accent{color:var(--gold)}
 
@@ -183,6 +184,12 @@ a.card:hover{transform:translateY(-2px);border-color:#d6c6b5;box-shadow:0 10px 2
 .chip-btn:active{transform:translateY(1px) scale(.985)}
 .chip-btn.on,.chip-btn.on:hover,html[data-theme=dark] .chip-btn.on,html[data-theme=dark] .chip-btn.on:hover{background:var(--ember);border-color:var(--ember);color:#fff;opacity:1}
 .chip-btn.on::before{content:'✓ ';font-weight:700}
+.howmany{display:grid;gap:.6rem;justify-items:center}.hm-big{font:700 3rem "Space Grotesk",system-ui;color:var(--ember);line-height:1}.hm-big.bump{animation:bump .35s cubic-bezier(.34,1.56,.64,1)}
+@keyframes bump{from{transform:scale(1.35)}to{transform:none}}
+.hm-row{display:flex;gap:.7rem;align-items:center;width:100%}.hm-num{width:5.5rem!important;flex:none;text-align:center;font-weight:700}
+input.hm-range{flex:1;-webkit-appearance:none;appearance:none;height:10px!important;min-height:0!important;padding:0!important;border:0!important;box-shadow:none!important;border-radius:99px;background:linear-gradient(var(--ember),var(--ember)) no-repeat 0/var(--p,11%) 100%,rgba(128,128,128,.28)!important;cursor:pointer;margin:0}
+.hm-range::-webkit-slider-thumb{-webkit-appearance:none;width:28px;height:28px;border-radius:50%;background:var(--ember);border:3px solid #fff;box-shadow:0 2px 8px rgba(0,0,0,.25);transition:transform .15s}.hm-range::-webkit-slider-thumb:hover{transform:scale(1.15)}
+.hm-range::-moz-range-thumb{width:24px;height:24px;border-radius:50%;background:var(--ember);border:3px solid #fff}
 .chat-hint{color:var(--ember);font:600 .9rem system-ui;margin-top:.4rem;min-height:1px}
 .chip-btn.ghosty{border-color:var(--line);font-weight:500;font-size:.88rem}
 .askrow{display:flex;gap:.5rem}.askrow .chat-in{flex:1}
@@ -332,12 +339,12 @@ export function layout(title: string, body: string, active = "", description = "
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>${esc(title)} · TechWomenAZ</title>
 <meta name="description" content="${esc(description)}">
-<link rel="icon" href="${FAVICON}">
+<link rel="icon" type="image/png" href="${FAVICON_PNG}"><link rel="apple-touch-icon" href="${LOGO_MARK}">
 <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;700&display=swap" rel="stylesheet">
 <script>try{var t=localStorage.getItem('theme');if(!t)t=matchMedia('(prefers-color-scheme: dark)').matches?'dark':'light';document.documentElement.dataset.theme=t;var g=sessionStorage.getItem('go');if(g){document.documentElement.dataset.go=g;sessionStorage.removeItem('go')}}catch(e){}</script>
 <style>${CSS}</style></head><body>
-<nav aria-label="Main"><a class="brand" href="/"><span class="ico">🔥</span> <span class="word">TechWomen<span class="accent">AZ</span></span></a>${link("/", "Home")}${link("/start", '<span class="l">Get matched</span><span class="s">Match</span>')}${link("/opportunities", '<span class="l">Opportunities</span><span class="s">Jobs</span>')}${link("/campfire", "Campfire")}<button class="theme-btn" type="button" aria-label="Switch light or dark mode" onclick="toggleTheme()"><svg class="sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></svg><svg class="moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z"/></svg></button></nav>
+<nav aria-label="Main"><a class="brand" href="/"><img class="logo" src="${LOGO_MARK}" alt="" width="30" height="30"> <span class="word">TechWomen<span class="accent">AZ</span></span></a>${link("/", "Home")}${link("/start", '<span class="l">Get matched</span><span class="s">Match</span>')}${link("/opportunities", '<span class="l">Opportunities</span><span class="s">Jobs</span>')}${link("/campfire", "Campfire")}<button class="theme-btn" type="button" aria-label="Switch light or dark mode" onclick="toggleTheme()"><svg class="sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></svg><svg class="moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z"/></svg></button></nav>
 <main>${body}</main>
 <div class="toast" id="toast" role="status" aria-live="polite"></div>
 <footer>TechWomenAZ mentorship · built by team fortfein at FireBytes 2026 · people and postings shown are demo data</footer>
