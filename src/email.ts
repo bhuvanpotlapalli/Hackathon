@@ -188,6 +188,12 @@ export const mail = {
     text: `Hi ${first(name)},\n\nYour account and its data — pairs, messages, meetings and courses — have been deleted. This cannot be undone.\n\nIf this was a mistake, ask the program team to set you up again.`,
   }),
 
+  employerApproved: (to: string, name: string, org: string, href: string): Mail => ({
+    to,
+    subject: `${org} is approved to post on TechWomenAZ`,
+    text: `Hi ${first(name)},\n\nThe program team approved your account for ${org}. You can post roles and prep courses, see which students fit, and message them from your dashboard.\n\n${href}`,
+  }),
+
   deletedByAdmin: (to: string, name: string): Mail => ({
     to,
     subject: "Your TechWomenAZ account was closed",

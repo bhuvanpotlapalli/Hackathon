@@ -19,13 +19,13 @@ Live: https://fortfein.firebytehack.workers.dev
 - **Courses.** Mentors add courses they teach or recommend; students filter by path, level, cost, format and tags, track lesson progress and save courses. Workers AI picks the courses that cover each posting, and a mentor can have ember write a 4-part course for one mentee.
 - **Profiles.** Bio, pronouns, experience, fun facts, interests, availability, format and area, with a Member directory for starting conversations.
 - **Privacy.** Personalized courses are visible only to the mentor and mentee they were built for (admins can see all), and conversations, pairs, meetings and calendars are visible only to their members.
-- **Employer logins.** A company contact signs up as an employer, gets an organization profile, posts roles and prep courses under that organization, and sees which students fit each posting (with links to their profiles). Employers cannot see the campfire, other organizations' postings or program administration.
+- **Employer logins.** A company contact signs up as an employer, gets an organization profile, posts roles and prep courses under that organization, and sees which students fit each posting (with links to their profiles). New employer accounts wait for approval: until an admin approves them on `/admin/accounts` they see a "waiting for approval" page and cannot post. Employers cannot see the campfire, other organizations' postings or program administration.
 - **Admin.** `/campfire` for every pair's flame, retention, weekly meeting chart and a before-and-after confidence Rise Report; `/admin/accounts` for members, admin roles, password resets, and deleting an account and its data.
 
 ## Security and privacy
 
 - Passwords are hashed with **PBKDF2-SHA256, 100,000 iterations** (WebCrypto) with a per-user salt; the comparison is constant-time.
-- Members can **delete their own account** (password plus a typed confirmation) and admins can delete an account from `/admin/accounts`. Deletion removes the account, its pairs, check-ins, milestones, meetings, nudges, pair chat, direct messages, personal courses, postings and organization, sessions and reset tokens. The last remaining admin cannot be deleted.
+- Members can **download everything they have as JSON** from `/account` (`/account/export`) and then **delete their own account** (password plus a typed confirmation); admins can delete an account from `/admin/accounts`. Deletion removes the account, its pairs, check-ins, milestones, meetings, nudges, pair chat, direct messages, personal courses, postings and organization, sessions and reset tokens. The last remaining admin cannot be deleted.
 - Sessions are random 256-bit tokens stored **hashed** in D1, sent as `HttpOnly; Secure; SameSite=Lax` cookies, 30 days, and rotated out on password change/reset. Eight failed logins lock an account for 15 minutes.
 - Every page except the marketing home, sign-in, sign-up and reset requires a session. Pair pages, chats, meetings, messages and the calendar are checked against the signed-in member, so one member cannot read another's pair or conversation.
 - Profile edits are limited to your own profile; only admins can post opportunities, manage organizations and accounts, see `/campfire`, or send nudges.
@@ -56,6 +56,8 @@ Local tests: `npx vitest run` (home page and `/health`). Type-check: `npx tsc --
 
 - **Reset a password:** `/admin/accounts` → *Reset link* → send the one-time URL (valid 24 hours) to the member. Only a hash of that token is stored, so a database copy cannot be used to reset accounts.
 - **Make someone an admin:** same page → *Make admin*.
+- **Approve an employer:** `/admin/accounts` shows pending employer accounts with an *Approve* button; approving emails the contact and unlocks their dashboard.
+- **Data export:** members download their own profile, pairs, meetings, check-ins, milestones, messages, courses and organization as JSON from `/account`.
 - **Email:** messages go out through [Resend](https://resend.com) over their REST API. Add the key as a Worker secret, then verify the sending domain in Resend (or keep the test sender and only mail your own address):
   ```bash
   npx wrangler secret put RESEND_API_KEY

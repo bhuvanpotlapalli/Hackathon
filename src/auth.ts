@@ -36,6 +36,8 @@ export interface Me {
   role: "mentee" | "mentor" | "employer" | "admin";
   /** Program admin permission, separate from the role above. */
   admin: boolean;
+  /** Employer accounts stay unapproved until a program admin approves them. */
+  approved: boolean;
   /** What the member signed up as, independent of the admin permission. */
   profileRole: "mentee" | "mentor";
   /** Organization this account manages, for employer accounts. */
@@ -101,12 +103,12 @@ export async function me(req: Request, env: Env): Promise<Me | null> {
   const token = cookieValue(req, COOKIE);
   if (!token) return null;
   const row = await env.DB.prepare(
-    `SELECT a.id AS account_id, a.email, a.role AS account_role, a.org_id, a.user_id, u.name, u.role AS user_role
+    `SELECT a.id AS account_id, a.email, a.role AS account_role, a.org_id, a.approved, a.user_id, u.name, u.role AS user_role
      FROM sessions s JOIN accounts a ON a.id = s.account_id JOIN users u ON u.id = a.user_id
      WHERE s.id = ? AND s.expires_at > ?`,
   )
     .bind(await sha256(token), new Date().toISOString())
-    .first<{ account_id: number; email: string; account_role: string; org_id: number | null; user_id: number; name: string; user_role: string }>();
+    .first<{ account_id: number; email: string; account_role: string; org_id: number | null; approved: number; user_id: number; name: string; user_role: string }>();
   if (!row) return null;
   return {
     accountId: row.account_id,
@@ -116,6 +118,7 @@ export async function me(req: Request, env: Env): Promise<Me | null> {
     // An employer contact keeps the employer view even if they also administer the program.
     role: row.org_id ? "employer" : row.account_role === "admin" ? "admin" : row.user_role === "mentor" ? "mentor" : "mentee",
     admin: row.account_role === "admin",
+    approved: row.approved !== 0,
     profileRole: row.user_role === "mentor" ? "mentor" : "mentee",
     orgId: row.org_id ?? null,
   };
@@ -338,8 +341,8 @@ export async function signupSubmit(req: Request, env: Env): Promise<Response> {
   // The very first account bootstraps the program even if it is an employer contact, so a fresh
   // install always has someone who can administer it.
   const admin = allowed.includes(email) || !others || others.n === 0;
-  const row = await env.DB.prepare(`INSERT INTO accounts (user_id, email, pass_hash, role, org_id, created_at) VALUES (?, ?, ?, ?, ?, ?) RETURNING id`)
-    .bind(userId, email, await hashPassword(password), admin ? "admin" : "member", orgId, new Date().toISOString())
+  const row = await env.DB.prepare(`INSERT INTO accounts (user_id, email, pass_hash, role, org_id, approved, created_at) VALUES (?, ?, ?, ?, ?, ?, ?) RETURNING id`)
+    .bind(userId, email, await hashPassword(password), admin ? "admin" : "member", orgId, employer && !admin ? 0 : 1, new Date().toISOString())
     .first<{ id: number }>();
   const res = await startSession(env, row!.id);
   // Welcome the member and tell the program team who joined. Both are best effort.
@@ -358,7 +361,7 @@ export async function signupSubmit(req: Request, env: Env): Promise<Response> {
   return new Response(null, {
     status: 303,
     headers: {
-      location: employer ? "/employer" : role === "mentor" ? `/mentor/${userId}` : `/matches/${userId}?new=1`,
+      location: employer ? (admin ? "/employer" : "/pending") : role === "mentor" ? `/mentor/${userId}` : `/matches/${userId}?new=1`,
       "set-cookie": res.headers.get("set-cookie")!,
     },
   });
@@ -384,6 +387,7 @@ ${url.searchParams.get("lastadmin") ? `<div class="notice" role="alert" style="b
   <div class="card"><h2 style="font-size:1.2rem;margin-top:0">Your profile</h2>
     <p class="muted">Your name, courses, goal, availability and bio live on your profile.</p>
     ${user.role === "employer" ? `<a class="btn ghost" href="/employer">Employer dashboard</a>` : `<a class="btn ghost" href="/profile/${user.userId}">Edit my profile</a>`}
+    <a class="btn ghost" href="/account/export">Download my data (JSON)</a>
     ${user.admin ? `<a class="btn ghost" href="/admin/accounts">Manage accounts</a>` : ""}
     <form method="post" action="/logout" style="margin-top:.8rem"><button class="btn ghost" type="submit">Sign out</button></form>
   </div>
@@ -463,12 +467,12 @@ export async function resetSubmit(req: Request, env: Env): Promise<Response> {
 // ---------------------------------------------------------------- admin: accounts
 export async function adminAccounts(req: Request, env: Env, url: URL): Promise<Response> {
   const rows = await env.DB.prepare(
-    `SELECT a.id, a.email, a.role, a.org_id, a.created_at, u.name, u.role AS user_role, o.name AS org_name,
+    `SELECT a.id, a.email, a.role, a.org_id, a.approved, a.created_at, u.name, u.role AS user_role, o.name AS org_name,
       (SELECT COUNT(*) FROM sessions s WHERE s.account_id = a.id AND s.expires_at > ?) AS sessions
      FROM accounts a JOIN users u ON u.id = a.user_id LEFT JOIN orgs o ON o.id = a.org_id ORDER BY a.created_at`,
   )
     .bind(new Date().toISOString())
-    .all<{ id: number; email: string; role: string; org_id: number | null; org_name: string | null; created_at: string; name: string; user_role: string; sessions: number }>();
+    .all<{ id: number; email: string; role: string; org_id: number | null; approved: number; org_name: string | null; created_at: string; name: string; user_role: string; sessions: number }>();
   const link = url.searchParams.get("link") ?? "";
   const origin = new URL(url).origin;
   const body = `
@@ -480,14 +484,16 @@ ${url.searchParams.get("self") ? `<div class="notice" role="alert">You cannot re
 ${url.searchParams.get("last") ? `<div class="notice" role="alert">That is the last admin account. Make someone else an admin first.</div>` : ""}
 ${url.searchParams.get("removed") ? `<div class="notice">Account and its data deleted.</div>` : ""}
 ${url.searchParams.get("emailed") ? `<div class="notice">Reset link emailed to the member.</div>` : ""}
+${url.searchParams.get("approved") ? `<div class="notice">Employer account approved and emailed.</div>` : ""}
 <div class="card"><h2 style="font-size:1.2rem;margin-top:0">${rows.results.length} account${rows.results.length === 1 ? "" : "s"}</h2>
 ${rows.results
   .map(
     (a) => `<div class="dm" style="cursor:default">
   <span class="pavatar sm">${esc(a.name.split(" ").map((w) => w[0]).join("").slice(0, 2).toUpperCase())}</span>
-  <span class="tbody"><span class="tname">${esc(a.name)} ${a.role === "admin" ? `<span class="chip sage">Admin</span>` : ""}${a.org_id ? `<span class="chip">Employer</span>` : ""}</span>
+  <span class="tbody"><span class="tname">${esc(a.name)} ${a.role === "admin" ? `<span class="chip sage">Admin</span>` : ""}${a.org_id ? `<span class="chip">Employer</span>` : ""}${a.org_id && !a.approved ? `<span class="chip" style="background:#fdecea;color:#7a1f16">Pending</span>` : ""}</span>
   <span class="tlast">${esc(a.email)} · ${a.org_name ? esc(a.org_name) : esc(a.user_role)} · joined ${esc(a.created_at.slice(0, 10))}${a.sessions ? ` · ${a.sessions} active session${a.sessions === 1 ? "" : "s"}` : ""}</span></span>
   <span class="row" style="gap:.3rem;flex-wrap:wrap">
+    ${a.org_id && !a.approved ? `<form method="post" action="/admin/accounts/${a.id}/approve"><button class="btn small" type="submit">Approve</button></form>` : ""}
     <form method="post" action="/admin/accounts/${a.id}/reset"><button class="btn small ghost" type="submit">Reset link</button></form>
     <form method="post" action="/admin/accounts/${a.id}/role"><input type="hidden" name="role" value="${a.role === "admin" ? "member" : "admin"}"><button class="btn small ghost" type="submit">${a.role === "admin" ? "Remove admin" : "Make admin"}</button></form>
     <form method="post" action="/admin/accounts/${a.id}/delete" onsubmit="return confirm('Delete ${esc(a.name.replace(/'/g, "\\'"))} and all of their data? This cannot be undone.')"><button class="btn small ghost" type="submit" style="border-color:#f5c2bd;color:#b3261e">Delete</button></form>
@@ -577,6 +583,67 @@ export async function forgotSubmit(req: Request, env: Env): Promise<Response> {
   );
 }
 
+// ---------------------------------------------------------------- data export
+/** Everything this account holds, as a JSON download. */
+export async function exportAccount(req: Request, env: Env): Promise<Response> {
+  const user = (await me(req, env))!;
+  type Row = Record<string, unknown>;
+  const rows = <T = Row>(r: D1Result<T>) => (r.results ?? []) as T[];
+  const [account, profile, pairs, threads, courses, personal, org] = await Promise.all([
+    env.DB.prepare(`SELECT email, role, org_id, created_at FROM accounts WHERE id = ?`).bind(user.accountId).first<Row>(),
+    env.DB.prepare(`SELECT * FROM users WHERE id = ?`).bind(user.userId).first<Row>(),
+    env.DB.prepare(
+      `SELECT p.id, p.goal, p.active, p.created_at, p.mentor_id, p.mentee_id, m.name AS mentor_name, e.name AS mentee_name
+       FROM pairs p JOIN users m ON m.id = p.mentor_id JOIN users e ON e.id = p.mentee_id
+       WHERE p.mentor_id = ? OR p.mentee_id = ?`,
+    ).bind(user.userId, user.userId).all<Row>(),
+    env.DB.prepare(`SELECT id, a_key, b_key, created_at FROM dm_threads WHERE a_key = ? OR b_key = ?`)
+      .bind(`u:${user.userId}`, `u:${user.userId}`).all<Row>(),
+    env.DB.prepare(`SELECT * FROM courses WHERE account_id = ?`).bind(user.accountId).all<Row>(),
+    env.DB.prepare(`SELECT * FROM personal_courses WHERE mentor_id = ? OR mentee_id = ?`).bind(user.userId, user.userId).all<Row>(),
+    user.orgId ? env.DB.prepare(`SELECT name, kind, about, website, area, created_at FROM orgs WHERE id = ?`).bind(user.orgId).first<Row>() : Promise.resolve(null),
+  ]);
+  const pairIds = rows(pairs).map((p) => Number(p.id)).filter(Boolean);
+  const inPairs = pairIds.map(() => "?").join(",");
+  const [meetings, checkins, milestones] = pairIds.length
+    ? await Promise.all([
+        env.DB.prepare(`SELECT * FROM meetings WHERE pair_id IN (${inPairs})`).bind(...pairIds).all<Row>(),
+        env.DB.prepare(`SELECT * FROM checkins WHERE pair_id IN (${inPairs})`).bind(...pairIds).all<Row>(),
+        env.DB.prepare(`SELECT * FROM milestones WHERE pair_id IN (${inPairs})`).bind(...pairIds).all<Row>(),
+      ])
+    : [null, null, null];
+  const threadIds = rows(threads).map((t) => Number(t.id)).filter(Boolean);
+  const inThreads = threadIds.map(() => "?").join(",");
+  const messages = threadIds.length
+    ? await env.DB.prepare(`SELECT * FROM dm_messages WHERE thread_id IN (${inThreads})`).bind(...threadIds).all<Row>()
+    : null;
+  const data = {
+    exported_at: new Date().toISOString(),
+    account,
+    profile,
+    organization: org,
+    pairs: rows(pairs).map((p) => ({
+      ...p,
+      meetings: meetings ? rows(meetings).filter((m) => m.pair_id === p.id) : [],
+      checkins: checkins ? rows(checkins).filter((c) => c.pair_id === p.id) : [],
+      milestones: milestones ? rows(milestones).filter((m) => m.pair_id === p.id) : [],
+    })),
+    direct_messages: rows(threads).map((t) => ({
+      ...t,
+      messages: messages ? rows(messages).filter((m) => m.thread_id === t.id) : [],
+    })),
+    courses: rows(courses),
+    personalized_courses: rows(personal),
+  };
+  return new Response(JSON.stringify(data, null, 2), {
+    headers: {
+      "content-type": "application/json; charset=utf-8",
+      "content-disposition": `attachment; filename="techwomenaz-export.json"`,
+      "cache-control": "no-store",
+    },
+  });
+}
+
 // ---------------------------------------------------------------- delete account
 export async function deleteOwnAccount(req: Request, env: Env): Promise<Response> {
   const user = await me(req, env);
@@ -594,6 +661,20 @@ export async function deleteOwnAccount(req: Request, env: Env): Promise<Response
   const who = await db.deleteAccount(env.DB, user.accountId);
   if (who) await sendMail(env, mail.deleted(who.email, who.name));
   return new Response(null, { status: 303, headers: { location: "/login?deleted=1", "set-cookie": sessionCookie("", 0) } });
+}
+
+export async function adminApproveAccount(req: Request, env: Env, accountId: number): Promise<Response> {
+  const account = await env.DB.prepare(
+    `SELECT a.id, a.email, a.org_id, u.name FROM accounts a JOIN users u ON u.id = a.user_id WHERE a.id = ?`,
+  )
+    .bind(accountId)
+    .first<{ id: number; email: string; org_id: number | null; name: string }>();
+  const back = (q: string) => new Response(null, { status: 303, headers: { location: `/admin/accounts?${q}` } });
+  if (!account) return back("");
+  await env.DB.prepare(`UPDATE accounts SET approved = 1 WHERE id = ?`).bind(accountId).run();
+  const org = account.org_id ? await env.DB.prepare(`SELECT name FROM orgs WHERE id = ?`).bind(account.org_id).first<{ name: string }>() : null;
+  await sendMail(env, mail.employerApproved(account.email, account.name, org?.name ?? "your organization", appUrl(env, "/employer")));
+  return back("approved=1");
 }
 
 export async function adminDeleteAccount(req: Request, env: Env, accountId: number): Promise<Response> {

@@ -82,10 +82,21 @@ async function route(request: Request, env: Env): Promise<Response> {
     const admin = user.admin;
     const isSelf = (id: number) => user.userId === id;
 
+    // Employer contacts wait for approval; they can still manage their account and export data.
+    if (user.role === "employer" && !user.approved) {
+      if (method === "GET" && path === "/pending") return employer.pendingPage(env, user);
+      const allowedGet = path === "/account" || path === "/account/export";
+      const allowedPost = path === "/account/password" || path === "/account/delete";
+      if (!(method === "GET" ? allowedGet : allowedPost)) return redirect("/pending");
+    }
+
     if (method === "GET") {
       if (path === "/home") return user.role === "employer" ? employer.dashboard(env, user, url) : pages.dashboard(env, user);
       if (path === "/account") return auth.accountPage(request, env, url);
+      if (path === "/account/export") return auth.exportAccount(request, env);
       // Employer (company contact) pages.
+      if (path === "/pending")
+        return user.role === "employer" ? (user.approved ? redirect("/employer") : employer.pendingPage(env, user)) : redirect("/home");
       if (path === "/employer") return user.role === "employer" ? employer.dashboard(env, user, url) : auth.forbidden();
       if (path === "/employer/postings/new") {
         if (user.role !== "employer") return auth.forbidden();
@@ -152,6 +163,7 @@ async function route(request: Request, env: Env): Promise<Response> {
       if (path === "/employer/postings") return user.role === "employer" ? employer.postingSubmit(request, env, user) : auth.forbidden();
       if (path === "/employer/org") return user.role === "employer" ? employer.orgSubmit(request, env, user) : auth.forbidden();
       if ((r = m(/^\/admin\/accounts\/(\d+)\/delete$/))) return admin ? auth.adminDeleteAccount(request, env, +r[1]) : auth.forbidden();
+      if ((r = m(/^\/admin\/accounts\/(\d+)\/approve$/))) return admin ? auth.adminApproveAccount(request, env, +r[1]) : auth.forbidden();
       if (path === "/choose") return pages.choose(request, env, user);
       if ((r = m(/^\/pair\/(\d+)\/log$/))) {
         const pairId = +r[1];

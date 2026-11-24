@@ -88,6 +88,20 @@ ${postingCards || `<div class="card"><p class="muted">No postings yet. <a href="
   return html(layout(`${org.name} · Employer`, body, "/employer"));
 }
 
+/** Shown to an employer whose account is waiting for the program team. */
+export async function pendingPage(env: Env, user: Me): Promise<Response> {
+  const org = (await orgFor(env, user.orgId))?.name ?? "your organization";
+  const body = `
+<div class="banner"><h1>Waiting for approval</h1><p>Thanks for signing up. The program team checks every employer account before it goes live.</p></div>
+<div class="card">
+  <p>We emailed the team that <b>${esc(user.name)}</b> (${esc(user.email)}) signed up for <b>${esc(org)}</b>. Once they approve it you can:</p>
+  <ul class="muted"><li>post roles and prep courses under your organization,</li><li>see which students fit each posting,</li><li>message those students directly.</li></ul>
+  <p class="muted">You will get an email the moment you are approved. Asking the team to hurry it along is fine too.</p>
+  <div class="row"><a class="btn ghost" href="/account">Your account</a><form method="post" action="/logout"><button class="btn ghost" type="submit">Sign out</button></form></div>
+</div>`;
+  return html(layout("Waiting for approval", body, "/employer"));
+}
+
 export function postingForm(org: Org, error = "", form: Record<string, string> = {}): Response {
   const v = (k: string, d = "") => esc(form[k] ?? d);
   const body = `

@@ -118,6 +118,8 @@ export function ensureDb(db: D1Database): Promise<void> {
       for (const m of PROFILE_MIGRATIONS) await db.prepare(m).run().catch(() => {});
       // Employer accounts (org_id) and who posted each opportunity/course.
       await db.prepare(`ALTER TABLE accounts ADD COLUMN org_id INTEGER`).run().catch(() => {});
+      // Employer accounts start unapproved; every existing account is already trusted.
+      await db.prepare(`ALTER TABLE accounts ADD COLUMN approved INTEGER NOT NULL DEFAULT 1`).run().catch(() => {});
       await db.prepare(`ALTER TABLE opportunities ADD COLUMN account_id INTEGER`).run().catch(() => {});
       await db.prepare(`ALTER TABLE courses ADD COLUMN account_id INTEGER`).run().catch(() => {});
       // One-time cleanup: this deployment started as a hackathon demo with fictional people.
