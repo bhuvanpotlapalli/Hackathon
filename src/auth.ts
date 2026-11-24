@@ -388,7 +388,7 @@ ${url.searchParams.get("lastadmin") ? `<div class="notice" role="alert" style="b
     <p class="muted">Your name, courses, goal, availability and bio live on your profile.</p>
     ${user.role === "employer" ? `<a class="btn ghost" href="/employer">Employer dashboard</a>` : `<a class="btn ghost" href="/profile/${user.userId}">Edit my profile</a>`}
     <a class="btn ghost" href="/account/export">Download my data (JSON)</a>
-    ${user.admin ? `<a class="btn ghost" href="/admin/accounts">Manage accounts</a>` : ""}
+    ${user.admin ? `<a class="btn ghost" href="/campfire">Program overview</a><a class="btn ghost" href="/admin/accounts">Manage accounts</a>` : ""}
     <form method="post" action="/logout" style="margin-top:.8rem"><button class="btn ghost" type="submit">Sign out</button></form>
   </div>
 </div>

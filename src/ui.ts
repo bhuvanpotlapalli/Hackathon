@@ -31,16 +31,18 @@ const CSS = `
 body{margin:0;background:var(--sand);color:var(--ink);font:16px/1.5 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
 h1,h2,h3,.brand{font-family:"Space Grotesk",system-ui,sans-serif;line-height:1.15;margin:0 0 .5rem}
 a{color:var(--ember)}
-nav{background:var(--plum);color:#fff;display:flex;gap:1rem;align-items:center;padding:.75rem 1rem;flex-wrap:wrap}
+nav{background:var(--plum);color:#fff;display:flex;gap:1.15rem;align-items:center;padding:.8rem 1.3rem;flex-wrap:wrap}
+.nav-tools{margin-left:auto;display:flex;align-items:center;gap:.45rem}
+.me-chip{padding:.3rem .7rem!important;border:1px solid rgba(255,255,255,.28)!important;border-radius:999px;font-size:.9rem;line-height:1.2}
 nav a{color:#fff;text-decoration:none;opacity:.85;padding:.35rem .2rem}
 nav a:hover,nav a[aria-current]{opacity:1;border-bottom:2px solid var(--gold)}
 .brand{font-size:1.35rem;font-weight:700;margin:0 auto 0 0;color:#fff!important;opacity:1!important;border:0!important}
-main{max-width:1040px;margin:0 auto;padding:1.25rem 1rem 3rem}
+main{max-width:1040px;margin:0 auto;padding:1.7rem 1.25rem 3.5rem}
 .hero{background:linear-gradient(160deg,var(--plum),#4a2747 70%,#7a3a3a);color:#fff;border-radius:20px;padding:2.5rem 1.5rem;margin-bottom:1.5rem;position:relative;overflow:hidden}
 .hero h1{font-size:clamp(1.9rem,5vw,3rem)}
 .hero p{opacity:.9;max-width:36rem}
-.card{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:1.1rem 1.2rem;box-shadow:0 2px 10px rgba(43,26,61,.06)}
-.grid{display:grid;gap:1rem;grid-template-columns:repeat(auto-fill,minmax(240px,1fr))}
+.card{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:1.25rem 1.35rem;box-shadow:0 2px 10px rgba(43,26,61,.06)}
+.grid{display:grid;gap:1.15rem;grid-template-columns:repeat(auto-fill,minmax(250px,1fr))}
 .row{display:flex;gap:.75rem;flex-wrap:wrap;align-items:center}
 .btn{display:inline-block;background:var(--ember);color:#fff;border:0;border-radius:12px;padding:.75rem 1.15rem;font:600 1rem system-ui;cursor:pointer;text-decoration:none;min-height:44px}
 .btn:hover{filter:brightness(1.05)}
@@ -159,7 +161,7 @@ a.card:hover{transform:translateY(-2px);border-color:#d6c6b5;box-shadow:0 10px 2
 .badge{position:absolute;top:-11px;left:16px;background:var(--ember);color:#fff;font:700 .72rem system-ui;letter-spacing:.04em;text-transform:uppercase;padding:.22rem .6rem;border-radius:6px}
 
 /* Page banners: plum ground, no stars */
-.banner{position:relative;border-radius:18px;padding:1.5rem 1.5rem;margin-bottom:1.25rem;color:#fff;background:var(--plum)}
+.banner{position:relative;border-radius:18px;padding:1.6rem 1.6rem;margin-bottom:1.6rem;color:#fff;background:var(--plum)}
 .banner h1{color:#fff;font-size:clamp(1.6rem,3.6vw,2.3rem)}.banner p{opacity:.8;margin:.2rem 0 0}
 .banner .btn.ghost{color:#fff;border-color:rgba(255,255,255,.55)}
 .banner .btn.ghost:hover{background:rgba(255,255,255,.08)}
@@ -203,7 +205,7 @@ input.hm-range{flex:1;-webkit-appearance:none;appearance:none;height:10px!import
 @keyframes breathe{0%,100%{transform:scale(1)}50%{transform:scale(1.06)}}
 .course-row{display:flex;justify-content:space-between;align-items:center;gap:.6rem;padding:.5rem 0;border-bottom:1px dashed var(--line)}
 .course-row:last-child{border-bottom:0}
-@media (max-width:480px){nav{gap:.55rem;padding:.55rem .7rem;flex-wrap:nowrap}nav a{font-size:.85rem;white-space:nowrap}.brand{font-size:1.02rem;gap:.3rem}.brand .word{display:none}.brand .logo{width:30px!important;height:30px!important}.brand .logo{width:24px;height:24px}nav{gap:.45rem!important}nav a[href="/"]:not(.brand){display:none}nav a span.l{display:none}nav a span.s{display:inline}.theme-btn{width:34px;height:34px;flex:none}}
+@media (max-width:480px){nav{gap:.55rem;padding:.55rem .7rem;flex-wrap:nowrap}nav a{font-size:.85rem;white-space:nowrap}.brand{font-size:1.02rem;gap:.3rem}.brand .word{display:none}.brand .logo{width:30px!important;height:30px!important}.brand .logo{width:24px;height:24px}nav{gap:.45rem!important}nav a[href="/"]:not(.brand){display:none}nav a span.l{display:none}nav a span.s{display:inline}.theme-btn,.icon-btn{width:34px;height:34px;flex:none}.nav-tools{gap:.3rem!important}.me-chip{font-size:.82rem;padding:.25rem .55rem!important}}
 @media (prefers-reduced-motion:reduce){*,*::before,*::after{animation:none!important;transition:none!important}[data-split] .w>span,.hero .inner>p,.hero .inner>.row,.hero .shot{transform:none!important;opacity:1!important}}
 /* How-it-works flow: one connected line, each step a link */
 .flow{display:grid;grid-template-columns:repeat(4,1fr);gap:0;margin:1.5rem 0 1.25rem;position:relative}
@@ -374,6 +376,10 @@ html{scrollbar-color:#cdb9a6 transparent}
 .theme-btn:active{transform:scale(.9) rotate(-20deg)}
 .theme-btn svg{width:20px;height:20px}
 .theme-btn .moon{display:none}
+.icon-btn{margin-left:0;width:40px;height:40px;border-radius:50%;border:1px solid rgba(255,255,255,.22);background:transparent;color:#fff;display:grid;place-items:center;text-decoration:none!important;opacity:1!important;background-size:0 0!important;transition:background-color .15s,transform .2s}
+.icon-btn:hover{background:rgba(255,255,255,.1)!important}
+.icon-btn:active{transform:scale(.92)}
+.icon-btn svg{width:20px;height:20px}
 html[data-theme=dark] .theme-btn .sun{display:none}html[data-theme=dark] .theme-btn .moon{display:block}
 html[data-theme=dark]{--sand:#140c1c;--card:#211629;--line:#3a2b46;--ink:#f3ebe3;--muted:#b9abc4;color-scheme:dark;scrollbar-color:#4a3858 transparent}
 html[data-theme=dark] body{background:var(--sand);color:var(--ink)}
@@ -443,8 +449,8 @@ export function layout(title: string, body: string, active = "", description = "
 <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;700&display=swap" rel="stylesheet">
 <script>try{var t=localStorage.getItem('theme');if(!t)t=matchMedia('(prefers-color-scheme: dark)').matches?'dark':'light';document.documentElement.dataset.theme=t;var g=sessionStorage.getItem('go');if(g){document.documentElement.dataset.go=g;sessionStorage.removeItem('go')}}catch(e){}</script>
 <style>${CSS}${COURSE_CSS}${PERSONAL_CSS}${SOCIAL_CSS}${INBOX_CSS}</style></head><body>
-<nav aria-label="Main"><a class="brand" href="/"><img class="logo" src="${LOGO_MARK}" alt="" width="30" height="30"> <span class="word">TechWomen<span class="accent">AZ</span></span></a>${link("/", "Home")}${link("/home", '<span class="l">Dashboard</span><span class="s">Home</span>')}${link("/opportunities", '<span class="l">Opportunities</span><span class="s">Jobs</span>')}${link("/courses", "Courses")}${link("/calendar", '<span class="l">Calendar</span><span class="s">Cal</span>')}${link("/messages", '<span class="l">Messages</span><span class="s">Inbox</span>')}<a class="me-chip" href="/login" id="meChip" title="Your account">Sign in</a><a class="me-chip" href="/campfire" id="adminChip" title="Program admin" style="display:none">Admin</a><a class="me-chip" href="/employer" id="employerChip" title="Your organization" style="display:none">Employer</a><button class="theme-btn" type="button" aria-label="Switch light or dark mode" onclick="toggleTheme()"><svg class="sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></svg><svg class="moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z"/></svg></button></nav>
-<script>(function(){fetch('/api/me',{headers:{accept:'application/json'}}).then(function(r){return r.json()}).then(function(d){var a=document.getElementById('meChip');if(!a||!d.user)return;a.textContent=d.user.name.split(' ')[0];a.href='/account';a.classList.add('on');a.title='Signed in — account settings';if(d.user.admin){var ad=document.getElementById('adminChip');if(ad)ad.style.display='inline-block'}if(d.user.role==='employer'){var ec=document.getElementById('employerChip');if(ec)ec.style.display='inline-block'}}).catch(function(){})})();</script>
+<nav aria-label="Main"><a class="brand" href="/"><img class="logo" src="${LOGO_MARK}" alt="" width="30" height="30"> <span class="word">TechWomen<span class="accent">AZ</span></span></a>${link("/home", '<span class="l">Dashboard</span><span class="s">Home</span>')}${link("/opportunities", '<span class="l">Opportunities</span><span class="s">Jobs</span>')}${link("/courses", "Courses")}${link("/calendar", '<span class="l">Calendar</span><span class="s">Cal</span>')}${link("/messages", '<span class="l">Messages</span><span class="s">Inbox</span>')}<span class="nav-tools"><a class="me-chip" href="/login" id="meChip">Sign in</a><a class="icon-btn" href="/account" id="settingsBtn" title="Settings" aria-label="Settings and account" style="display:none"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg></a><button class="theme-btn" type="button" aria-label="Switch light or dark mode" onclick="toggleTheme()"><svg class="sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></svg><svg class="moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z"/></svg></button></span></nav>
+<script>(function(){fetch('/api/me',{headers:{accept:'application/json'}}).then(function(r){return r.json()}).then(function(d){if(!d.user)return;var a=document.getElementById('meChip'),g=document.getElementById('settingsBtn');if(a)a.style.display='none';if(g){g.style.display='grid';g.title='Settings · '+d.user.name;g.setAttribute('aria-label','Settings and account for '+d.user.name)}}).catch(function(){})})();</script>
 <main>${body}</main>
 <div class="toast" id="toast" role="status" aria-live="polite"></div>
 <footer>TechWomenAZ mentorship · <a href="/account">your account</a> · <a href="/">about the program</a></footer>
