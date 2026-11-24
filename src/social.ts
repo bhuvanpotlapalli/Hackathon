@@ -1,7 +1,7 @@
 // Profiles (view + edit) and mentor–mentee chat on the pair page.
 import { ALL_PATHS, AREAS, AVAILABILITY, FORMATS, FUN_INTERESTS, clamp, normCareer, splitCourses, type User } from "./logic";
 import { esc, html, layout, options } from "./ui";
-import { currentIdent } from "./inbox";
+import type { Me } from "./auth";
 
 interface Env {
   DB: D1Database;
@@ -22,24 +22,12 @@ export const PROFILE_MIGRATIONS = [`ALTER TABLE users ADD COLUMN bio TEXT NOT NU
 type Profile = User & { bio?: string; pronouns?: string; fun_facts?: string; experience?: string };
 
 /** A few demo messages for the first pairs, so the chat has something to show. */
-export function messageSeed(db: D1Database, pairs: { id: number; mentor: number; mentee: number }[]): D1PreparedStatement[] {
-  const lines: [boolean, string][] = [
-    [false, "Hi! Thanks for matching with me. Can we start with my portfolio?"],
-    [true, "Absolutely. Send me your favorite project and we'll go through it Thursday."],
-    [false, "Sent the link. I'm nervous about the case study part."],
-    [true, "Totally normal. Bring one question and we'll fix it together."],
-  ];
-  const now = Date.now();
-  const ins = db.prepare(`INSERT INTO messages (pair_id, sender_id, body, created_at) VALUES (?, ?, ?, ?)`);
-  return pairs.flatMap((p) => lines.map(([mentor, body], i) => ins.bind(p.id, mentor ? p.mentor : p.mentee, body, new Date(now - (lines.length - i) * 3 * 3600e3).toISOString())));
-}
 
 // ---------------------------------------------------------------- Profile
-export async function profilePage(env: Env, id: number, url: URL, req?: Request): Promise<Response> {
+export async function profilePage(env: Env, id: number, url: URL, user: Me): Promise<Response> {
   const u = await env.DB.prepare(`SELECT * FROM users WHERE id = ?`).bind(id).first<Profile>();
-  if (!u) return html(layout("Not found", `<div class="card"><h1>Profile not found</h1><p><a href="/">Back home</a></p></div>`), 404);
-  const me = req ? await currentIdent(req, env) : null;
-  const isMe = me?.kind === "user" && me.id === u.id;
+  if (!u) return html(layout("Not found", `<div class="card"><h1>Profile not found</h1><p><a href="/home">Back to your dashboard</a></p></div>`), 404);
+  const isMe = user.userId === u.id;
   const first = esc(u.name.split(" ")[0]);
   const pairs = await env.DB.prepare(
     `SELECT p.id, m.name AS mentor_name, e.name AS mentee_name FROM pairs p JOIN users m ON m.id = p.mentor_id JOIN users e ON e.id = p.mentee_id WHERE p.mentor_id = ? OR p.mentee_id = ?`,
@@ -60,7 +48,7 @@ ${url.searchParams.get("saved") ? `<div class="notice">Profile saved.</div>` : "
   ${u.fun_facts ? `<p style="margin:.3rem 0 0;position:relative;z-index:1"><b>Fun facts:</b> ${esc(u.fun_facts)}</p>` : ""}
   <div class="row" style="margin-top:1rem;position:relative;z-index:1">
     ${mentor ? `<a class="btn" href="/courses/personal?mentor=${u.id}">Build a course for a mentee</a>` : `<a class="btn" href="/matches/${u.id}">See my matches</a>`}
-    ${isMe ? `<span class="chip sage">This is you</span><a class="btn ghost onDark" href="/switch">Switch person</a>` : `<a class="btn ghost onDark" href="/messages/u:${u.id}">Message ${first}</a>`}
+    ${isMe ? `<span class="chip sage">This is you</span><a class="btn ghost onDark" href="/account">Account settings</a>` : `<a class="btn ghost onDark" href="/messages/u:${u.id}">Message ${first}</a>`}
     <a class="btn ghost onDark" href="/calendar">My calendar</a>
   </div>
   ${pairs.results.length ? `<div class="row" style="margin-top:.6rem;position:relative;z-index:1">${pairs.results.map((p) => `<a class="btn small ghost onDark" href="/pair/${p.id}#chat">Chat with ${esc((mentor ? p.mentee_name : p.mentor_name).split(" ")[0])}</a><a class="btn small ghost onDark" href="/calendar?pair=${p.id}#schedule">Book a meeting</a>`).join("")}</div>` : ""}
@@ -125,35 +113,33 @@ interface Msg {
   created_at: string;
 }
 
-export function chatBlock(pair: { id: number; mentor_id: number; mentee_id: number; mentor_name: string; mentee_name: string }): string {
+export function chatBlock(pair: { id: number; mentor_id: number; mentee_id: number; mentor_name: string; mentee_name: string }, user: Me): string {
   const fm = esc(pair.mentor_name.split(" ")[0]);
   const fe = esc(pair.mentee_name.split(" ")[0]);
   return `<div class="card pchat" id="chat">
   <div class="row" style="justify-content:space-between"><h2 style="font-size:1.2rem;margin:0">Chat</h2>
-  <div class="seg" role="radiogroup" aria-label="Send as"><span class="muted" style="font-size:.85rem">Send as</span>
-    <label><input type="radio" name="as" value="${pair.mentee_id}" checked> ${fe}</label><label><input type="radio" name="as" value="${pair.mentor_id}"> ${fm}</label></div></div>
-  <p class="muted" style="font-size:.82rem;margin:.3rem 0 .6rem">Demo: no logins yet, so pick who you're sending as. Profiles: <a href="/profile/${pair.mentee_id}">${fe}</a> · <a href="/profile/${pair.mentor_id}">${fm}</a></p>
+  <span class="muted" style="font-size:.85rem">Sending as ${esc(user.name.split(" ")[0])}</span></div>
   <div class="msgs" id="msgs" aria-live="polite"><p class="muted">Loading messages…</p></div>
   <form class="askrow" id="msgForm" style="margin-top:.6rem"><input class="chat-in" id="msgIn" maxlength="600" required placeholder="Write a message" aria-label="Message"><button class="btn" type="submit">Send</button></form>
 </div>
 <script>
 (function(){var box=document.getElementById('msgs'),form=document.getElementById('msgForm'),inp=document.getElementById('msgIn'),last=-1,names={'${pair.mentor_id}':'${fm}','${pair.mentee_id}':'${fe}'};
-function me(){return document.querySelector('input[name=as]:checked').value}
+function me(){return '${user.userId}'}
 function esc(s){var d=document.createElement('div');d.textContent=s;return d.innerHTML}
 function when(t){var d=new Date(t);return d.toLocaleDateString([], {month:'short',day:'numeric'})+' '+d.toLocaleTimeString([], {hour:'numeric',minute:'2-digit'})}
 function draw(list){if(!list.length){box.innerHTML='<p class="muted">No messages yet. Say hi!</p>';return}
   box.innerHTML=list.map(function(m){var mine=String(m.sender_id)===me();return '<div class="msg'+(mine?' mine':'')+'"><div class="bub">'+esc(m.body)+'</div><small>'+esc(names[m.sender_id]||'')+' · '+when(m.created_at)+'</small></div>'}).join('');box.scrollTop=box.scrollHeight}
 var cache=[];function load(){fetch('/api/pair/${pair.id}/messages').then(function(r){return r.json()}).then(function(d){cache=d.messages||[];if(cache.length!==last){last=cache.length;draw(cache)}}).catch(function(){})}
-document.querySelectorAll('input[name=as]').forEach(function(r){r.onchange=function(){draw(cache)}});
 form.onsubmit=function(e){e.preventDefault();var v=inp.value.trim();if(!v)return;inp.value='';
-  fetch('/api/pair/${pair.id}/messages',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({sender:+me(),body:v})}).then(function(r){return r.json()}).then(function(d){if(d.error){if(window.toast)toast(d.error);return}last=-1;load()}).catch(function(){if(window.toast)toast('Could not send. Try again.')})};
+  fetch('/api/pair/${pair.id}/messages',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({body:v})}).then(function(r){return r.json()}).then(function(d){if(d.error){if(window.toast)toast(d.error);return}last=-1;load()}).catch(function(){if(window.toast)toast('Could not send. Try again.')})};
 load();setInterval(load,4000);})();
 </script>`;
 }
 
-export async function apiMessages(req: Request, env: Env, pairId: number): Promise<Response> {
+export async function apiMessages(req: Request, env: Env, pairId: number, user: Me): Promise<Response> {
   const pair = await env.DB.prepare(`SELECT id, mentor_id, mentee_id FROM pairs WHERE id = ?`).bind(pairId).first<{ id: number; mentor_id: number; mentee_id: number }>();
   if (!pair) return Response.json({ error: "Pair not found" }, { status: 404 });
+  if (user.userId !== pair.mentor_id && user.userId !== pair.mentee_id) return Response.json({ error: "This chat isn't yours." }, { status: 403 });
   if (req.method === "POST") {
     let b: { sender?: unknown; body?: unknown } = {};
     try {
@@ -161,10 +147,9 @@ export async function apiMessages(req: Request, env: Env, pairId: number): Promi
     } catch {
       return Response.json({ error: "Bad request" }, { status: 400 });
     }
-    const sender = Number(b.sender);
+    const sender = user.userId;
     const body = typeof b.body === "string" ? b.body.trim().slice(0, 600) : "";
     if (!body) return Response.json({ error: "Write a message first." }, { status: 400 });
-    if (sender !== pair.mentor_id && sender !== pair.mentee_id) return Response.json({ error: "Only this pair can chat here." }, { status: 403 });
     await env.DB.prepare(`INSERT INTO messages (pair_id, sender_id, body, created_at) VALUES (?, ?, ?, ?)`).bind(pairId, sender, body, new Date().toISOString()).run();
   }
   const { results } = await env.DB.prepare(`SELECT id, sender_id, body, created_at FROM messages WHERE pair_id = ? ORDER BY created_at ASC, id ASC LIMIT 200`).bind(pairId).all<Msg>();
@@ -224,20 +209,6 @@ function azLocal(d: Date): string {
   return `${d.getUTCFullYear()}-${pad(d.getUTCMonth() + 1)}-${pad(d.getUTCDate())}T${pad(d.getUTCHours())}:${pad(d.getUTCMinutes())}`;
 }
 
-export function meetingSeed(db: D1Database, pairIds: number[]): D1PreparedStatement[] {
-  const ins = db.prepare(`INSERT INTO meetings (pair_id, kind, starts_at, minutes, place, link, topic, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`);
-  const day = (n: number, h: number) => {
-    const d = azNow();
-    d.setUTCDate(d.getUTCDate() + n);
-    d.setUTCHours(h, 0, 0, 0);
-    return azLocal(d);
-  };
-  const now = new Date().toISOString();
-  return pairIds.flatMap((id, i) => [
-    ins.bind(id, "Virtual", day(2 + i, 18), 30, "", "https://zoom.us/j/0000000000", "Portfolio review", now),
-    ins.bind(id, "In-person", day(9 + i, 10), 45, "Heritage HQ, 515 E Grant St, Phoenix", "", "Mock interview over coffee", now),
-  ]);
-}
 
 function fmt(s: string): string {
   const m = s.match(/^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2})/);
@@ -372,19 +343,6 @@ interface Org {
   area: string;
 }
 
-export function orgSeed(db: D1Database): D1PreparedStatement[] {
-  const ins = db.prepare(`INSERT OR IGNORE INTO orgs (name, kind, about, website, area, created_at) VALUES (?, ?, ?, ?, ?, ?)`);
-  const now = new Date().toISOString();
-  const rows: [string, string, string, string][] = [
-    ["Saguaro Health (demo)", "Company", "A Scottsdale health system with an in-house design team that hires UX interns every summer.", "Scottsdale"],
-    ["Valley Water Co. (demo)", "Company", "Phoenix water utility using data to save water across the Valley.", "Phoenix"],
-    ["Desert Shield Security (demo)", "Company", "East Valley security firm running a 24/7 SOC for Arizona businesses.", "East Valley"],
-    ["Copper State Tech (demo)", "Company", "Phoenix software company building payments and scheduling apps.", "Phoenix"],
-    ["Sun Valley Schools (demo)", "Government", "West Valley school district with a growing IT team.", "West Valley"],
-    ["TechWomenAZ (demo)", "Nonprofit", "Helping women and college students in Arizona build tech careers, with or without a tech degree.", "Phoenix"],
-  ];
-  return rows.map(([n, k, a, area]) => ins.bind(n, k, a, "", area, now));
-}
 
 async function orgData(env: Env, name: string) {
   const [opps, courses] = await Promise.all([

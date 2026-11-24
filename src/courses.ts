@@ -54,43 +54,6 @@ export const COURSE_SCHEMA = `CREATE TABLE IF NOT EXISTS courses (
 )`;
 
 type SeedCourse = Omit<Course, "id" | "created_at">;
-const C = (
-  title: string, provider: string, author: string, author_kind: string, opp_id: number | null, career: string,
-  level: string, cost: string, format: string, length: string, tags: string, description: string,
-): SeedCourse => ({ title, provider, author, author_kind, opp_id, career, level, cost, format, length, tags, description, link: "" });
-
-// Fictional demo courses (opportunity ids 1-6 follow the seeded postings).
-const SEED: SeedCourse[] = [
-  C("User Research Methods, the practical version", "TechWomenAZ mentor session (demo)", "Dana Ruiz", "Mentor", null, "UX/Design", "Beginner", "Free", "Live class", "4 weeks", "user research, interviews, portfolio", "Plan, run and write up 3 real user interviews. Ends with a portfolio-ready case study."),
-  C("Figma Prototyping from zero", "TechWomenAZ mentor session (demo)", "Hannah Brooks", "Mentor", null, "UX/Design", "Beginner", "Free", "Self-paced", "6 hours", "figma, prototyping, ux design", "Wireframes to clickable prototype, with a redesign project you can show."),
-  C("Human-Computer Interaction crash course", "ASU Open (demo)", "Dana Ruiz", "Mentor", null, "UX/Design", "Intermediate", "Free", "Self-paced", "3 weeks", "hci, usability testing, accessibility", "The HCI ideas interviewers ask about, with usability testing practice."),
-  C("Intro to Java with real projects", "TechWomenAZ mentor session (demo)", "Maria Santos", "Mentor", null, "Software", "Beginner", "Free", "Live class", "6 weeks", "java, programming basics, git", "Weekly evening class. You finish with two small Java apps on GitHub."),
-  C("Data Structures and Algorithms for interviews", "TechWomenAZ mentor session (demo)", "Priya Natarajan", "Mentor", null, "Software", "Intermediate", "Free", "Workshop", "5 sessions", "data structures, algorithms, interview prep", "The 20 problems that come up most, solved together, plus a mock interview."),
-  C("JavaScript and the web", "Community college (demo)", "Kevin Tran", "Mentor", null, "Software", "Beginner", "Paid", "Live class", "8 weeks", "javascript, html and css, react", "Build and deploy a portfolio site. Ex-chef turned frontend dev teaches it."),
-  C("SQL for analysts", "TechWomenAZ mentor session (demo)", "Lena Okafor", "Mentor", null, "Data/AI", "Beginner", "Free", "Self-paced", "10 hours", "sql databases, data analysis, dashboards", "Query real public data, then build one dashboard from it."),
-  C("Statistics you'll actually use", "UofA Extension (demo)", "Lena Okafor", "Mentor", null, "Data/AI", "Intermediate", "Paid", "Live class", "6 weeks", "statistics, python for data science, a/b testing", "Distributions, tests and A/B experiments in Python, no heavy math."),
-  C("Network Security foundations", "TechWomenAZ mentor session (demo)", "Marcus Bell", "Mentor", null, "Cybersecurity", "Beginner", "Free", "Workshop", "3 sessions", "network security, computer networking, security+", "Ports, firewalls and packet captures in a home lab. Maps to Security+."),
-  C("Linux Administration for SOC work", "TechWomenAZ mentor session (demo)", "Ray Castillo", "Mentor", null, "Cybersecurity", "Intermediate", "Free", "Self-paced", "8 hours", "linux administration, logs, incident response", "The Linux commands and log reading a SOC analyst uses every day."),
-  C("Agile and product basics", "TechWomenAZ mentor session (demo)", "Sofia Martinez", "Mentor", null, "Product", "Beginner", "Free", "Live class", "4 weeks", "product management, agile project management, roadmaps", "Write a one-page brief and a roadmap, then present it to a real PM."),
-  C("Statics and CAD for your first design project", "TechWomenAZ mentor session (demo)", "Grace Whitfield", "Mentor", null, "Engineering · Mechanical", "Beginner", "Free", "Workshop", "4 sessions", "statics, cad modeling, solidworks, portfolio", "Model a bracket in CAD, check it with statics, and write it up as a case study."),
-  C("Circuits to embedded systems", "TechWomenAZ mentor session (demo)", "Ana Morales", "Mentor", null, "Engineering · Electrical", "Intermediate", "Free", "Live class", "6 weeks", "circuit analysis, embedded systems, digital logic, fe exam", "From Ohm's law to programming a microcontroller, with FE exam practice."),
-  C("AutoCAD for civil internships", "TechWomenAZ mentor session (demo)", "Joy Nakamura", "Mentor", null, "Engineering · Civil", "Beginner", "Free", "Self-paced", "8 hours", "autocad, structural analysis, site plans", "Draw a real site plan the way interns do on day one."),
-  C("Help Desk Fundamentals bootcamp", "TechWomenAZ mentor session (demo)", "Tasha Greene", "Mentor", null, "IT/Support", "Beginner", "Free", "Workshop", "4 sessions", "help desk fundamentals, windows administration, computer hardware", "Tickets, troubleshooting and Windows admin, with an A+ study plan."),
-  // Uploaded by the employers for their postings.
-  C("Saguaro Health UX intern prep", "Saguaro Health (demo)", "Saguaro Health recruiting", "Employer", 1, "UX/Design", "Beginner", "Free", "Self-paced", "3 hours", "user research, figma, healthcare ux", "How our design team works, plus the exercise we use in interviews."),
-  C("Valley Water analyst starter kit", "Valley Water Co. (demo)", "Valley Water Co. data team", "Employer", 2, "Data/AI", "Beginner", "Free", "Self-paced", "5 hours", "sql databases, statistics, utilities data", "Practice queries on sample meter data, like the ones interns write."),
-  C("Desert Shield SOC readiness", "Desert Shield Security (demo)", "Desert Shield Security", "Employer", 3, "Cybersecurity", "Intermediate", "Free", "Workshop", "2 sessions", "network security, linux administration, siem", "A walk through our alert triage, then a practice shift."),
-];
-
-export function courseSeed(db: D1Database): D1PreparedStatement[] {
-  const now = Date.now();
-  const ins = db.prepare(
-    `INSERT INTO courses (title, provider, author, author_kind, opp_id, career, level, cost, format, length, tags, description, link, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-  );
-  return SEED.map((c, i) =>
-    ins.bind(c.title, c.provider, c.author, c.author_kind, c.opp_id, c.career, c.level, c.cost, c.format, c.length, c.tags, c.description, c.link, new Date(now - (i + 1) * 3600e3).toISOString()),
-  );
-}
 
 async function listCourses(db: D1Database): Promise<Course[]> {
   const { results } = await db.prepare(`SELECT * FROM courses ORDER BY created_at DESC`).all<Course>();
@@ -215,12 +178,13 @@ export async function courseForm(env: Env, url: URL): Promise<Response> {
   return html(layout("Share a course", body, "/courses"));
 }
 
-export async function courseSubmit(req: Request, env: Env): Promise<Response> {
+export async function courseSubmit(req: Request, env: Env, user?: { userId: number; name: string; role: string }): Promise<Response> {
   const f = await req.formData();
   const s = (k: string, max: number) => String(f.get(k) ?? "").trim().slice(0, max);
   const pick = (k: string, list: string[]) => (list.includes(s(k, 60)) ? s(k, 60) : list[0]);
   const title = s("title", 120);
-  const author = s("author", 80);
+  // Mentors publish under their own name; admins can publish on behalf of an employer.
+  const author = user && user.role !== "admin" ? user.name.slice(0, 80) : s("author", 80);
   if (!title || !author) return courseForm(env, new URL(req.url));
   const oppId = parseInt(s("opp_id", 10), 10);
   const opp = oppId ? await getOpp(env.DB, oppId) : null;
@@ -291,7 +255,7 @@ export async function courseDetail(env: Env, id: number): Promise<Response> {
   <h2 style="font-size:1.2rem;margin-top:1rem">Mentors who know this</h2>${
     guides.length
       ? guides.map((x) => `<div class="row" style="justify-content:space-between;align-items:center;border-bottom:1px dashed var(--line);padding:.45rem 0;gap:.5rem"><div><a href="/profile/${x.m.id}"><b>${esc(x.m.name)}</b></a><br><span class="muted">${esc(x.m.headline)}</span></div><a class="btn small ghost" href="/messages/u:${x.m.id}">Message</a></div>`).join("")
-      : `<p class="muted">${esc(c.author)} shared it. <a href="/start">Get matched</a> to find a mentor for it.</p>`
+      : `<p class="muted">${esc(c.author)} shared it. <a href="/messages">Ask around</a> to find a mentor for it.</p>`
   }</div>
 </div>
 <script>(function(){var id=${c.id},b=document.getElementById('saveBtn'),s=[];try{s=JSON.parse(localStorage.getItem('savedCourses')||'[]')}catch(e){}

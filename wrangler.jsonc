@@ -12,6 +12,9 @@
 	},
 	"upload_source_maps": true,
 	"ai": { "binding": "AI" },
+	// Sign up with this email to get program admin (post opportunities, see the Campfire).
+	// Comma-separate to allow more than one admin.
+	"vars": { "ADMIN_EMAIL": "bhuvanp1227@gmail.com" },
 	// Ember's database. Run `npx wrangler d1 create ember-db` once and paste the real
 	// database_id below (tables + demo data are created automatically on first request).
 	"d1_databases": [

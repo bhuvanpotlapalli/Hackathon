@@ -1,5 +1,5 @@
 // Workers AI helpers. Every call has a timeout and a template fallback,
-// so the demo never breaks (and works in mock mode where env.AI is missing).
+// so the app never breaks (and still works when env.AI is missing).
 // Free plan = 10,000 neurons/day for the whole team: thinking off, short answers.
 
 import type { User } from "./logic";

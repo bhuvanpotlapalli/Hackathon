@@ -4,7 +4,7 @@ import * as ai from "./ai";
 import * as db from "./db";
 import { oppCoursesBlock } from "./courses";
 import { chatBlock, meetingsBlock } from "./social";
-import { setAs } from "./inbox";
+import type { Me } from "./auth";
 import {
   AREAS,
   AVAILABILITY,
@@ -56,11 +56,8 @@ async function flamesByPair(env: Env): Promise<Map<number, { flame: Flame; check
 }
 
 // ---------------------------------------------------------------- Home
-export async function home(env: Env): Promise<Response> {
-  const [mentees, pairs, flames] = await Promise.all([db.listMentees(env.DB), db.listPairs(env.DB), flamesByPair(env)]);
-  const all = pairs.map((p) => ({ p, flame: flames.get(p.id)!.flame })).sort((a, b) => b.flame.heat - a.flame.heat);
-  // One pair from each part of the range, so the preview shows every flame state.
-  const live = [0, 0.3, 0.6, 1].map((k) => all[Math.round(k * (all.length - 1))]).filter((v, i, arr) => v && arr.indexOf(v) === i);
+export async function home(env: Env, user: Me | null): Promise<Response> {
+  const start = user ? "/home" : "/signup";
   const body = `
 <div class="story">
 <div class="thread" aria-hidden="true"><i id="threadFill"></i></div>
@@ -81,18 +78,18 @@ export async function home(env: Env): Promise<Response> {
       <h1 data-split>Mentorships that <span class="accent">don't fizzle out</span></h1>
       <p class="lede">Get matched with a mentor who took your classes. Meet, and your flame grows. Go quiet, and we notice.</p>
       <div class="row" style="margin-top:1.6rem">
-        <a class="btn xl" href="/start">Get matched in 2 minutes</a>
-        <a class="btn ghost xl onDark" href="/start">Become a mentor</a>
+        <a class="btn xl" href="${start}">${user ? "Go to my dashboard" : "Create an account"}</a>
+        <a class="btn ghost xl onDark" href="${user ? "/account" : "/login"}">${user ? "My account" : "Sign in"}</a>
       </div>
     </div>
-    <a class="app float" href="/campfire" aria-label="Open the Campfire dashboard">
-      <div class="bar"><i></i><i></i><i></i><span>Campfire · ${all.length} pairs, live</span></div>
-      <div class="rows">${live
-        .map(
-          (r) => `<div class="r">${flameHtml(r.flame, 44)}<div><div class="nm">${esc(r.p.mentee_name.split(" ")[0])} + ${esc(r.p.mentor_name.split(" ")[0])}</div><div class="sub">${esc(r.p.career)} · ${statusHtml(r.flame.status)}</div></div><div class="meter" aria-label="heat ${r.flame.heat}"><b style="width:${r.flame.heat}%"></b></div></div>`,
-        )
-        .join("")}</div>
-    </a>
+    <div class="app float" aria-hidden="true">
+      <div class="bar"><i></i><i></i><i></i><span>Campfire · every pair, live</span></div>
+      <div class="rows">
+        <div class="r">${flameHtml({ heat: 82, status: "Blazing", daysQuiet: 0, streak: 6 }, 44)}<div><div class="nm">Meeting weekly</div><div class="sub">Portfolio review · Blazing</div></div><div class="meter"><b style="width:82%"></b></div></div>
+        <div class="r">${flameHtml({ heat: 48, status: "Glowing", daysQuiet: 3, streak: 2 }, 44)}<div><div class="nm">Finding the rhythm</div><div class="sub">Mock interview · Glowing</div></div><div class="meter"><b style="width:48%"></b></div></div>
+        <div class="r">${flameHtml({ heat: 12, status: "Embers", daysQuiet: 12, streak: 0 }, 44)}<div><div class="nm">Gone quiet</div><div class="sub">Needs a nudge · Embers</div></div><div class="meter"><b style="width:12%"></b></div></div>
+      </div>
+    </div>
   </div>
   <a class="cue" href="#why" aria-label="Scroll to Why"><span></span></a>
 </section>
@@ -115,9 +112,9 @@ export async function home(env: Env): Promise<Response> {
     <h2 class="big">Match</h2>
     <p class="line">Someone who took your classes.</p>
     <div class="matchbox" aria-hidden="true">
-      <div class="pcard left"><i class="av">E</i><b>Elena</b><small>Career changer</small></div>
+      <div class="pcard left"><i class="av">You</i><b>Mentee</b><small>Career changer</small></div>
       <div class="links"><div class="pct">85%</div><span>User Research</span><span>HCI</span></div>
-      <div class="pcard right"><i class="av av2">D</i><b>Dana</b><small>UX Designer</small></div>
+      <div class="pcard right"><i class="av av2">M</i><b>Mentor</b><small>UX Designer</small></div>
     </div>
   </div>
 </section>
@@ -164,14 +161,10 @@ export async function home(env: Env): Promise<Response> {
   <div class="sx-in">
     <h2 class="big">Your turn.</h2>
     <div class="row" style="justify-content:center;margin-top:1.4rem">
-      <a class="btn xl" href="/start">Get matched</a>
-      <a class="btn ghost xl onDark" href="/matches/19">Try the demo</a>
+      <a class="btn xl" href="${start}">${user ? "Go to my dashboard" : "Create an account"}</a>
+      <a class="btn ghost xl onDark" href="/courses">Browse courses</a>
     </div>
-    <p class="demo-names">Demo mentees: ${[...mentees]
-      .sort((a, b) => (a.name.startsWith("Elena") ? -1 : b.name.startsWith("Elena") ? 1 : 0))
-      .slice(0, 8)
-      .map((m) => `<a href="/matches/${m.id}">${esc(m.name.split(" ")[0])}</a>`)
-      .join(" · ")}</p>
+    <p class="muted" style="margin-top:1rem;text-align:center">Mentors are volunteers from Arizona tech teams. Everything you share stays inside the program.</p>
   </div>
 </section>
 </div>
@@ -206,85 +199,48 @@ export async function home(env: Env): Promise<Response> {
   return html(layout("Home", body, "/"));
 }
 
-// ---------------------------------------------------------------- Join
-export function joinForm(url: URL, error = ""): Response {
-  const role = url.searchParams.get("role") === "mentor" ? "mentor" : "mentee";
+// ---------------------------------------------------------------- Dashboard
+export async function dashboard(env: Env, user: Me): Promise<Response> {
+  const admin = user.role === "admin";
+  const { results: pairs } = await env.DB.prepare(
+    `SELECT p.id, p.goal, p.created_at, p.mentor_id, p.mentee_id, mu.name AS mentor_name, eu.name AS mentee_name
+     FROM pairs p JOIN users mu ON mu.id = p.mentor_id JOIN users eu ON eu.id = p.mentee_id
+     WHERE p.active = 1${admin ? "" : " AND (p.mentor_id = ? OR p.mentee_id = ?)"} ORDER BY p.id`,
+  )
+    .bind(...(admin ? [] : [user.userId, user.userId]))
+    .all<{ id: number; goal: string; created_at: string; mentor_id: number; mentee_id: number; mentor_name: string; mentee_name: string }>();
+  const { results: checkins } = await env.DB.prepare(`SELECT pair_id, met_at FROM checkins ORDER BY met_at DESC`).all<{ pair_id: number; met_at: string }>();
+  const byPair = new Map<number, string[]>();
+  for (const c of checkins) byPair.set(c.pair_id, [...(byPair.get(c.pair_id) ?? []), c.met_at]);
+  const rows = pairs.map((p) => ({ p, flame: flameFor(byPair.get(p.id) ?? [], p.created_at) }));
+  const roleLabel = admin ? "Program admin" : user.role === "mentor" ? "Mentor" : "Mentee";
   const body = `
-<div class="banner"><h1>Join TechWomenAZ mentoring</h1>
-<p>For college students and adults. No tech degree needed. <a href="/start" style="color:#fff">Prefer a chat?</a></p></div>
-${error ? `<div class="notice" style="background:#fdecea;border-color:#f5c2bd;color:#7a1f16" role="alert">${esc(error)}</div>` : ""}
-<form method="post" action="/join" class="card">
-  <fieldset><legend><b>I want to…</b></legend>
-    <label class="check"><input type="radio" name="role" value="mentee" ${role === "mentee" ? "checked" : ""} onchange="roleChange()"> Find a mentor</label>
-    <label class="check"><input type="radio" name="role" value="mentor" ${role === "mentor" ? "checked" : ""} onchange="roleChange()"> Be a mentor</label>
-  </fieldset>
-  <div class="two">
-    <div><label for="name">Name</label><input id="name" name="name" required maxlength="80" autocomplete="name"></div>
-    <div><label for="headline" id="headlineLabel">Where you are now</label><input id="headline" name="headline" maxlength="120" placeholder="e.g. ASU junior, Graphic Design"></div>
-    <div><label for="career">Career path</label><select id="career" name="career">${options(ALL_PATHS)}</select></div>
-    <div><label for="school">School or program</label><input id="school" name="school" maxlength="120" placeholder="e.g. Arizona State University"></div>
-  </div>
-  <label for="courses" id="coursesLabel">Courses you're taking or have taken</label>
-  <input id="courses" name="courses" maxlength="400" required placeholder="Separate with commas: Intro to UX Design, Statistics, SQL Databases">
-  <p class="muted" id="coursesHint" style="margin:.3rem 0 0;font-size:.9rem">We match you with mentors who have been through the same coursework.</p>
-  <label for="goal" id="goalLabel">Your main goal</label>
-  <input id="goal" name="goal" required maxlength="200" placeholder="e.g. Land a UX internship by May">
-  <div class="two">
-    <div><label for="availability">Availability</label><select id="availability" name="availability">${options(AVAILABILITY)}</select></div>
-    <div><label for="format">Meeting format</label><select id="format" name="format">${options(FORMATS, "Both")}</select></div>
-    <div><label for="area">Area</label><select id="area" name="area">${options(AREAS)}</select></div>
-    <div id="capBox" style="display:none"><label for="capacity">How many mentees can you take?</label><div class="hm-row"><input class="hm-range" type="range" min="1" max="10" value="2" aria-label="Mentees, slider" oninput="capacity.value=this.value;this.style.setProperty('--p',(this.value-1)/9*100+'%')"><input class="hm-num" id="capacity" name="capacity" type="number" min="1" max="20" value="2" oninput="this.previousElementSibling.value=Math.min(10,this.value||1)"></div></div>
-  </div>
-  <label for="confidence" id="confLabel">How confident do you feel about your tech career? <output id="confOut">5</output>/10</label>
-  <input id="confidence" name="confidence" type="range" min="1" max="10" value="5" oninput="confOut.value=this.value">
-  <label class="check"><input type="checkbox" name="no_degree" value="1"> I don't have a tech degree</label>
-  <label class="check"><input type="checkbox" name="adult" value="1" required> I'm 18 or older and in college or beyond</label>
-  <label class="check"><input type="checkbox" name="consent" value="1" required> I agree that TechWomenAZ can store my answers to run the program and report combined, anonymous results</label>
-  <div style="margin-top:1rem"><button class="btn" type="submit">Join and see my matches</button></div>
-</form>
-<script>
-function roleChange(){var m=document.querySelector('input[name=role]:checked').value==='mentor';
-document.getElementById('capBox').style.display=m?'block':'none';
-document.getElementById('coursesLabel').textContent=m?'Courses you have taken or teach':'Courses you\\'re taking or have taken';
-document.getElementById('coursesHint').textContent=m?'Mentees taking these courses will be matched with you.':'We match you with mentors who have been through the same coursework.';
-document.getElementById('goalLabel').textContent=m?'What you can help with':'Your main goal';
-document.getElementById('headlineLabel').textContent=m?'Your role':'Where you are now';
-document.querySelector('button[type=submit]').textContent=m?'Join as a mentor':'Join and see my matches';}
-roleChange();
-</script>`;
-  return html(layout("Join", body, "/join"));
+<div class="banner"><h1>Hi ${esc(user.name.split(" ")[0])}</h1>
+<p>${roleLabel} · <a href="/profile/${user.userId}" style="color:#fff">edit your profile</a> · <a href="/account" style="color:#fff">account</a></p></div>
+<div class="grid">
+  ${user.profileRole === "mentor" ? `<a class="card" href="/mentor/${user.userId}"><h3>Mentees who fit</h3><p class="muted">People whose courses you've been through.</p></a>` : `<a class="card" href="/matches/${user.userId}"><h3>Your matches</h3><p class="muted">Mentors ranked by the courses you share.</p></a>`}
+  <a class="card" href="/messages"><h3>Messages</h3><p class="muted">Talk to your mentor, mentee or the program team.</p></a>
+  <a class="card" href="/calendar"><h3>Calendar</h3><p class="muted">Book and review meetings.</p></a>
+  ${admin ? `<a class="card" href="/campfire"><h3>Campfire</h3><p class="muted">Every pair's flame, retention and the Rise Report.</p></a><a class="card" href="/admin/accounts"><h3>Accounts</h3><p class="muted">Members, admins and password resets.</p></a>` : ``}
+</div>
+<h2 style="margin-top:1.6rem">${admin ? "Every pair" : "Your pairs"}</h2>
+${
+  rows.length
+    ? `<div class="grid">${rows
+        .map(
+          (r) => `<a class="card mini" href="/pair/${r.p.id}" style="padding:1rem">${flameHtml(r.flame, 90)}
+      <b style="text-align:center;margin-top:.3rem">${esc(r.p.mentee_name.split(" ")[0])} + ${esc(r.p.mentor_name.split(" ")[0])}</b>
+      ${statusHtml(r.flame.status)}<span class="muted" style="font-size:.85rem">heat ${r.flame.heat}${r.flame.streak ? ` · ${r.flame.streak}wk streak` : ""}</span></a>`,
+        )
+        .join("")}</div>`
+    : `<div class="card"><p class="muted">${user.profileRole === "mentor" ? "You don't have a mentee pair yet. When a mentee chooses you, the pair appears here." : "You don't have a mentor yet. Open your matches and choose one."}</p>
+    <a class="btn" href="${user.profileRole === "mentor" ? `/profile/${user.userId}` : `/matches/${user.userId}`}">${user.profileRole === "mentor" ? "Update my profile" : "See my matches"}</a></div>`
+}`;
+  return html(layout("Your dashboard", body, "/home"));
 }
 
-export async function joinSubmit(req: Request, env: Env): Promise<Response> {
-  const f = await req.formData();
-  const role = str(f, "role") === "mentor" ? "mentor" : "mentee";
-  const name = str(f, "name", 80);
-  const goal = str(f, "goal", 200);
-  const courses = str(f, "courses", 400);
-  if (!name || !goal || !courses) return joinForm(new URL(`http://x/join?role=${role}`), "Please fill in your name, courses and goal.");
-  if (!f.get("adult")) return joinForm(new URL(`http://x/join?role=${role}`), "TechWomenAZ mentoring is for people 18+ in college or beyond.");
-  if (!f.get("consent")) return joinForm(new URL(`http://x/join?role=${role}`), "Please tick the data consent box so we can match you.");
-  const pick = (k: string, list: string[]) => (list.includes(str(f, k)) ? str(f, k) : list[0]);
-  const id = await db.createUser(env.DB, {
-    name,
-    role,
-    career: normCareer(str(f, "career", 60)),
-    no_degree: f.get("no_degree") ? 1 : 0,
-    goal,
-    headline: str(f, "headline", 120),
-    courses,
-    school: str(f, "school", 120),
-    availability: pick("availability", AVAILABILITY),
-    format: pick("format", FORMATS),
-    area: pick("area", AREAS),
-    confidence: int(f, "confidence", 1, 10, 5),
-    capacity: role === "mentor" ? int(f, "capacity", 1, 20, 2) : 0,
-  });
-  // Sign the new profile in so messages, the calendar and profile edits act as them.
-  return setAs(`u:${id}`, role === "mentor" ? `/mentor/${id}` : `/matches/${id}`);
-}
-
-export async function mentorWelcome(env: Env, id: number): Promise<Response> {
+// ---------------------------------------------------------------- Join
+export async function mentorWelcome(env: Env, id: number, _user: Me): Promise<Response> {
   const u = await db.getUser(env.DB, id);
   if (!u || u.role !== "mentor") return notFound("Mentor");
   const mentees = await db.listMentees(env.DB);
@@ -311,7 +267,7 @@ export async function mentorWelcome(env: Env, id: number): Promise<Response> {
 }
 
 // ---------------------------------------------------------------- Matches
-export async function matches(env: Env, menteeId: number, url: URL): Promise<Response> {
+export async function matches(env: Env, menteeId: number, url: URL, _user: Me): Promise<Response> {
   const mentee = await db.getUser(env.DB, menteeId);
   if (!mentee || mentee.role !== "mentee") return notFound("Mentee");
   const [mentors, already, myPairs, opps] = await Promise.all([
@@ -396,18 +352,27 @@ function oppCard(o: import("./logic").Opportunity, score?: number, reasons: stri
 </div>`;
 }
 
-export async function choose(req: Request, env: Env): Promise<Response> {
+export async function choose(req: Request, env: Env, user: Me): Promise<Response> {
   const f = await req.formData();
   const mentee = await db.getUser(env.DB, int(f, "mentee", 1, 1e9, 0));
   const mentor = await db.getUser(env.DB, int(f, "mentor", 1, 1e9, 0));
+  if (!mentee || mentee.id !== user.userId) return redirect("/home");
   if (!mentee || !mentor || mentee.role !== "mentee" || mentor.role !== "mentor") return notFound("Match");
+  // One pair per mentor: choosing the same mentor again opens the existing pair.
+  const existing = await env.DB.prepare(`SELECT id FROM pairs WHERE mentor_id = ? AND mentee_id = ? AND active = 1`)
+    .bind(mentor.id, mentee.id)
+    .first<{ id: number }>();
+  if (existing) return redirect(`/pair/${existing.id}`);
+  // Respect the mentor's own capacity even if the form is submitted directly.
+  const load = await env.DB.prepare(`SELECT COUNT(*) AS n FROM pairs WHERE mentor_id = ? AND active = 1`).bind(mentor.id).first<{ n: number }>();
+  if ((load?.n ?? 0) >= mentor.capacity) return redirect(`/matches/${mentee.id}?full=1`);
   const milestones = (await ai.suggestMilestones(env, mentee, mentor)) ?? starterMilestones(mentee.career, mentee.goal);
   const pairId = await db.createPair(env.DB, mentor.id, mentee, milestones);
   return redirect(`/pair/${pairId}?new=1`);
 }
 
 // ---------------------------------------------------------------- Pair
-export async function pairPage(env: Env, pairId: number, url: URL): Promise<Response> {
+export async function pairPage(env: Env, pairId: number, url: URL, user: Me): Promise<Response> {
   const pair = await db.getPair(env.DB, pairId);
   if (!pair) return notFound("Pair");
   const [checkins, milestones] = await Promise.all([db.listCheckins(env.DB, pairId), db.listMilestones(env.DB, pairId)]);
@@ -446,7 +411,7 @@ ${fromHeat !== null ? `<div class="notice">Meeting logged. Your flame grew from 
       <a class="btn small ghost" style="margin-top:.8rem" href="/courses/personal?mentor=${pair.mentor_id}&mentee=${pair.mentee_id}">Build a course for ${esc(pair.mentee_name.split(" ")[0])} with ember</a>
       <div id="agenda" style="margin-top:.6rem" aria-live="polite"></div>
     </div>
-    ${chatBlock(pair)}
+    ${chatBlock(pair, user)}
     ${await meetingsBlock(env, pair.id)}
     <form class="card" style="margin-top:1rem" method="post" action="/pair/${pair.id}/log">
       <h2 style="font-size:1.2rem">Log a meeting</h2>
@@ -541,7 +506,7 @@ export async function campfire(env: Env, url: URL): Promise<Response> {
   });
   const older = rows.filter((r) => now - new Date(r.p.created_at).getTime() > 21 * DAY);
   const retained = older.filter((r) => r.flame.daysQuiet <= 21);
-  const retention = older.length ? Math.round((100 * retained.length) / older.length) : 100;
+  const retention = older.length ? Math.round((100 * retained.length) / older.length) : null;
   const churned = rows.filter((r) => r.flame.daysQuiet > 28).length;
   const newPairs = rows.filter((r) => now - new Date(r.p.created_at).getTime() <= 30 * DAY).length;
   const maxM = Math.max(1, ...weeks.map((w) => w.meetings));
@@ -558,9 +523,7 @@ export async function campfire(env: Env, url: URL): Promise<Response> {
      <div style="background:#f1e7dc;border-radius:8px;height:16px" role="img" aria-label="${label} ${v.toFixed(1)} out of 10"><div class="barfill" style="width:${v * 10}%;height:100%;background:${color};border-radius:8px"></div></div></div>`;
 
   const body = `
-${url.searchParams.get("reset") ? `<div class="notice">Demo data reset.</div>` : ""}
-<div class="banner"><div class="row" style="justify-content:space-between;position:relative;z-index:1"><h1>Admin · Campfire</h1>
-${url.searchParams.has("admin") || url.searchParams.get("reset") ? `<form method="post" action="/admin/reset" class="no-print" onsubmit="return confirm('Reset all demo data? This clears everything judges have added.')"><button class="btn small ghost" type="submit">Reset demo</button></form>` : ""}</div>
+<div class="banner"><div class="row" style="justify-content:space-between;position:relative;z-index:1"><h1>Admin · Campfire</h1><a class="btn small ghost onDark" href="/admin/accounts">Accounts</a></div>
 <p>Retention across the program, and every pair, quietest first.</p></div>
 <div class="stats">
   <div class="card stat"><b data-count="${Math.round((100 * active) / n)}" data-suffix="%">${Math.round((100 * active) / n)}%</b>pairs active (Glowing or Blazing)</div>
@@ -571,7 +534,7 @@ ${url.searchParams.has("admin") || url.searchParams.get("reset") ? `<form method
 <div class="card retention" style="margin-bottom:1rem">
   <div class="row" style="justify-content:space-between"><h2 style="font-size:1.2rem;margin:0">Retention</h2><span class="muted" style="font-size:.85rem"><span class="key kb"></span>meetings per week <span class="key kl"></span>% of pairs that met</span></div>
   <div class="stats" style="margin:.8rem 0">
-    <div class="stat"><b data-count="${retention}" data-suffix="%">${retention}%</b>retention (pairs over 3 weeks old that met in the last 3 weeks)</div>
+    <div class="stat">${retention === null ? `<b>—</b>retention (no pairs over 3 weeks old yet)` : `<b data-count="${retention}" data-suffix="%">${retention}%</b>retention (pairs over 3 weeks old that met in the last 3 weeks)`}</div>
     <div class="stat"><b data-count="${churned}">${churned}</b>churned (quiet over 4 weeks)</div>
     <div class="stat"><b data-count="${newPairs}">${newPairs}</b>new pairs in 30 days</div>
     <div class="stat"><b data-count="${weeks[weeks.length - 1].pct}" data-suffix="%">${weeks[weeks.length - 1].pct}%</b>of pairs met this week</div>
@@ -704,6 +667,7 @@ export async function oppDetail(env: Env, id: number, url: URL): Promise<Respons
   if (!o) return notFound("Opportunity");
   const mentees = await db.listMentees(env.DB);
   const org = await env.DB.prepare(`SELECT id FROM orgs WHERE name = ?`).bind(o.org).first<{ id: number }>();
+  const team = await env.DB.prepare(`SELECT user_id FROM accounts WHERE role = 'admin' ORDER BY id LIMIT 1`).first<{ user_id: number }>();
   const ranked = mentees
     .map((m: User) => ({ m, r: oppScore(m, o) }))
     .filter((x) => x.r.score >= 40)
@@ -729,8 +693,8 @@ ${url.searchParams.get("posted") ? `<div class="notice">Posted. These students h
   }</div>
 </div>
 <div class="card" style="margin-top:1rem"><h2 style="font-size:1.2rem;margin-top:0">Questions about this posting?</h2>
-<p class="muted" style="margin:.2rem 0 .7rem">Message ${esc(o.org)} directly. Employers answer here and see only what you put on your profile.</p>
-<div class="row">${org ? `<a class="btn" href="/messages/o:${org.id}">Message the employer</a><a class="btn ghost" href="/orgs/${org.id}">Organization profile</a>` : `<a class="btn ghost" href="/org?name=${encodeURIComponent(o.org)}">Organization profile</a>`}</div></div>
+<p class="muted" style="margin:.2rem 0 .7rem">Ask the program team about this posting. They answer here, and employers only see what you put on your profile.</p>
+<div class="row">${team ? `<a class="btn" href="/messages/u:${team.user_id}">Message the program team</a>` : ""}${org ? `<a class="btn ghost" href="/orgs/${org.id}">Organization profile</a>` : `<a class="btn ghost" href="/org?name=${encodeURIComponent(o.org)}">Organization profile</a>`}</div></div>
 ${oppCoursesBlock(o.id)}`;
   return html(layout(o.title, body, "/opportunities"));
 }

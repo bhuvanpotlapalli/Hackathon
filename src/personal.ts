@@ -109,22 +109,6 @@ async function getUser(db: D1Database, id: number) {
 }
 
 /** Demo personalized courses so the section has something to show. */
-export async function personalSeed(db: D1Database): Promise<void> {
-  const pairs: [string, string][] = [["Dana Ruiz", "Maya Chen"], ["Marcus Bell", "Tyler Brooks"], ["Lena Okafor", "Rosa Delgado"], ["Hannah Brooks", "Elena Vasquez"]];
-  const stmts: D1PreparedStatement[] = [];
-  for (const [mn, en] of pairs) {
-    const mentor = await db.prepare(`SELECT * FROM users WHERE name = ?`).bind(mn).first<User>();
-    const mentee = await db.prepare(`SELECT * FROM users WHERE name = ?`).bind(en).first<User>();
-    if (!mentor || !mentee) continue;
-    const c = templateCourse(mentee, mentor, "");
-    stmts.push(
-      db
-        .prepare(`INSERT INTO personal_courses (mentor_id, mentee_id, title, summary, modules, ai, demo, created_at) VALUES (?, ?, ?, ?, ?, 0, 1, ?)`)
-        .bind(mentor.id, mentee.id, c.title, c.summary, JSON.stringify(c.modules), new Date(Date.now() - stmts.length * 7200e3).toISOString()),
-    );
-  }
-  if (stmts.length) await db.batch(stmts);
-}
 
 export function coursesTabs(active: "library" | "personal"): string {
   return `<div class="ctabs" role="tablist"><a role="tab" class="${active === "library" ? "on" : ""}" href="/courses">Course library</a><a role="tab" class="${active === "personal" ? "on" : ""}" href="/courses/personal">Personalized by ember</a></div>`;
