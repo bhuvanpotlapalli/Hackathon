@@ -467,12 +467,12 @@ export async function resetSubmit(req: Request, env: Env): Promise<Response> {
 // ---------------------------------------------------------------- admin: accounts
 export async function adminAccounts(req: Request, env: Env, url: URL): Promise<Response> {
   const rows = await env.DB.prepare(
-    `SELECT a.id, a.email, a.role, a.org_id, a.approved, a.created_at, u.name, u.role AS user_role, o.name AS org_name,
+    `SELECT a.id, a.user_id, a.email, a.role, a.org_id, a.approved, a.created_at, u.name, u.role AS user_role, o.name AS org_name,
       (SELECT COUNT(*) FROM sessions s WHERE s.account_id = a.id AND s.expires_at > ?) AS sessions
      FROM accounts a JOIN users u ON u.id = a.user_id LEFT JOIN orgs o ON o.id = a.org_id ORDER BY a.created_at`,
   )
     .bind(new Date().toISOString())
-    .all<{ id: number; email: string; role: string; org_id: number | null; approved: number; org_name: string | null; created_at: string; name: string; user_role: string; sessions: number }>();
+    .all<{ id: number; user_id: number; email: string; role: string; org_id: number | null; approved: number; org_name: string | null; created_at: string; name: string; user_role: string; sessions: number }>();
   const link = url.searchParams.get("link") ?? "";
   const origin = new URL(url).origin;
   const body = `
@@ -494,6 +494,7 @@ ${rows.results
   <span class="tlast">${esc(a.email)} · ${a.org_name ? esc(a.org_name) : esc(a.user_role)} · joined ${esc(a.created_at.slice(0, 10))}${a.sessions ? ` · ${a.sessions} active session${a.sessions === 1 ? "" : "s"}` : ""}</span></span>
   <span class="row" style="gap:.3rem;flex-wrap:wrap">
     ${a.org_id && !a.approved ? `<form method="post" action="/admin/accounts/${a.id}/approve"><button class="btn small" type="submit">Approve</button></form>` : ""}
+    <a class="btn small ghost" href="/profile/${a.user_id}">View profile</a>
     <form method="post" action="/admin/accounts/${a.id}/reset"><button class="btn small ghost" type="submit">Reset link</button></form>
     <form method="post" action="/admin/accounts/${a.id}/role"><input type="hidden" name="role" value="${a.role === "admin" ? "member" : "admin"}"><button class="btn small ghost" type="submit">${a.role === "admin" ? "Remove admin" : "Make admin"}</button></form>
     <form method="post" action="/admin/accounts/${a.id}/delete" onsubmit="return confirm('Delete ${esc(a.name.replace(/'/g, "\\'"))} and all of their data? This cannot be undone.')"><button class="btn small ghost" type="submit" style="border-color:#f5c2bd;color:#b3261e">Delete</button></form>
