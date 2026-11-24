@@ -115,7 +115,7 @@ export function coursesTabs(active: "library" | "personal"): string {
 
 // ---------------------------------------------------------------- /courses/personal
 export async function personalPage(env: Env, url: URL, user: Me): Promise<Response> {
-  const admin = user.role === "admin";
+  const admin = user.admin;
   // Members only ever see plans they are part of; admins see the whole program.
   const listSql = `SELECT pc.*, m.name AS mentor_name, e.name AS mentee_name FROM personal_courses pc JOIN users m ON m.id = pc.mentor_id JOIN users e ON e.id = pc.mentee_id${admin ? "" : " WHERE pc.mentor_id = ? OR pc.mentee_id = ?"} ORDER BY pc.created_at DESC`;
   const listStmt = admin ? env.DB.prepare(listSql) : env.DB.prepare(listSql).bind(user.userId, user.userId);
@@ -167,7 +167,7 @@ ${canBuild ? `<script>document.getElementById('buildForm').addEventListener('sub
 
 export async function personalSubmit(req: Request, env: Env, user: Me): Promise<Response> {
   const f = await req.formData();
-  const admin = user.role === "admin";
+  const admin = user.admin;
   const mentor = await getUser(env.DB, admin ? parseInt(String(f.get("mentor") ?? ""), 10) || 0 : user.userId);
   const mentee = await getUser(env.DB, parseInt(String(f.get("mentee") ?? ""), 10) || 0);
   if (!mentor || !mentee || mentor.role !== "mentor" || mentee.role !== "mentee") return new Response(null, { status: 303, headers: { location: "/courses/personal" } });

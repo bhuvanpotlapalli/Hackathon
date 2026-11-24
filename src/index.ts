@@ -1,5 +1,6 @@
 import * as auth from "./auth";
 import * as courses from "./courses";
+import * as employer from "./employer";
 import * as inbox from "./inbox";
 import * as pages from "./pages";
 import * as personal from "./personal";
@@ -48,14 +49,24 @@ async function route(request: Request, env: Env): Promise<Response> {
     if (method === "GET") {
       if (path === "/") return pages.home(env, user);
       if (path === "/login")
-        return auth.loginPage(url.searchParams.get("next") ?? "", "", url.searchParams.get("reset") ? "Password saved. Sign in with your new password." : "");
+        return auth.loginPage(
+          url.searchParams.get("next") ?? "",
+          "",
+          url.searchParams.get("reset")
+            ? "Password saved. Sign in with your new password."
+            : url.searchParams.get("deleted")
+              ? "Your account and its data were deleted. Sorry to see you go."
+              : "",
+        );
       if (path === "/signup") return auth.signupPage();
       if (path === "/reset") return auth.resetForm(request, env, url);
+      if (path === "/forgot") return auth.forgotPage();
     }
     if (method === "POST") {
       if (path === "/login") return auth.loginSubmit(request, env);
       if (path === "/signup") return auth.signupSubmit(request, env);
       if (path === "/reset") return auth.resetSubmit(request, env);
+      if (path === "/forgot") return auth.forgotSubmit(request, env);
       if (path === "/logout") return auth.logout(request, env);
     }
     if (path === "/start" || path === "/join") return redirect("/signup");
@@ -68,12 +79,24 @@ async function route(request: Request, env: Env): Promise<Response> {
       }
       return redirect("/login");
     }
-    const admin = user.role === "admin";
+    const admin = user.admin;
     const isSelf = (id: number) => user.userId === id;
 
     if (method === "GET") {
-      if (path === "/home") return pages.dashboard(env, user);
+      if (path === "/home") return user.role === "employer" ? employer.dashboard(env, user, url) : pages.dashboard(env, user);
       if (path === "/account") return auth.accountPage(request, env, url);
+      // Employer (company contact) pages.
+      if (path === "/employer") return user.role === "employer" ? employer.dashboard(env, user, url) : auth.forbidden();
+      if (path === "/employer/postings/new") {
+        if (user.role !== "employer") return auth.forbidden();
+        const org = await employer.orgFor(env, user.orgId);
+        return org ? employer.postingForm(org) : redirect("/employer");
+      }
+      if (path === "/employer/org") {
+        if (user.role !== "employer") return auth.forbidden();
+        const org = await employer.orgFor(env, user.orgId);
+        return org ? employer.orgForm(org) : redirect("/employer");
+      }
       if (path === "/admin/accounts") return admin ? auth.adminAccounts(request, env, url) : auth.forbidden();
       if (path === "/campfire") return admin ? pages.campfire(env, url) : auth.forbidden();
       if ((r = m(/^\/mentor\/(\d+)$/))) return admin || isSelf(+r[1]) ? pages.mentorWelcome(env, +r[1], user) : auth.forbidden();
@@ -99,7 +122,13 @@ async function route(request: Request, env: Env): Promise<Response> {
       if (path === "/org") return social.orgByName(env, url);
       if ((r = m(/^\/orgs\/(\d+)$/))) return social.orgPage(env, +r[1], url);
       if (path === "/courses") return courses.coursesPage(env, url);
-      if (path === "/courses/new") return user.role === "mentor" || admin ? courses.courseForm(env, url, user) : auth.forbidden();
+      if (path === "/courses/new") {
+        if (user.role === "employer") {
+          const org = await employer.orgFor(env, user.orgId);
+          return courses.courseForm(env, url, { name: org?.name ?? user.name, role: "employer" });
+        }
+        return user.role === "mentor" || admin ? courses.courseForm(env, url, user) : auth.forbidden();
+      }
       if (path === "/courses/personal") return personal.personalPage(env, url, user);
       if ((r = m(/^\/courses\/personal\/(\d+)$/))) return personal.personalDetail(env, +r[1], url, user);
       if ((r = m(/^\/courses\/(\d+)$/))) return courses.courseDetail(env, +r[1]);
@@ -118,6 +147,11 @@ async function route(request: Request, env: Env): Promise<Response> {
       if ((r = m(/^\/admin\/accounts\/(\d+)\/reset$/))) return admin ? auth.adminIssueReset(request, env, +r[1]) : auth.forbidden();
       if ((r = m(/^\/admin\/accounts\/(\d+)\/role$/))) return admin ? auth.adminSetRole(request, env, +r[1]) : auth.forbidden();
       if (path === "/account/password") return auth.changePassword(request, env);
+      if (path === "/account/delete") return auth.deleteOwnAccount(request, env);
+      if ((r = m(/^\/employer\/postings\/(\d+)\/delete$/))) return user.role === "employer" ? employer.postingDelete(env, user, +r[1]) : auth.forbidden();
+      if (path === "/employer/postings") return user.role === "employer" ? employer.postingSubmit(request, env, user) : auth.forbidden();
+      if (path === "/employer/org") return user.role === "employer" ? employer.orgSubmit(request, env, user) : auth.forbidden();
+      if ((r = m(/^\/admin\/accounts\/(\d+)\/delete$/))) return admin ? auth.adminDeleteAccount(request, env, +r[1]) : auth.forbidden();
       if (path === "/choose") return pages.choose(request, env, user);
       if ((r = m(/^\/pair\/(\d+)\/log$/))) {
         const pairId = +r[1];
@@ -148,7 +182,7 @@ async function route(request: Request, env: Env): Promise<Response> {
       if (path === "/opportunities") return admin ? pages.oppSubmit(request, env) : auth.forbidden();
       if (path === "/orgs") return admin ? social.orgSubmit(request, env) : auth.forbidden();
       if ((r = m(/^\/profile\/(\d+)$/))) return admin || isSelf(+r[1]) ? social.profileSubmit(request, env, +r[1]) : auth.forbidden();
-      if (path === "/courses") return user.role === "mentor" || admin ? courses.courseSubmit(request, env, user) : auth.forbidden();
+      if (path === "/courses") return user.role === "mentor" || user.role === "employer" || admin ? courses.courseSubmit(request, env, user) : auth.forbidden();
       if (path === "/courses/personal") return user.role === "mentor" || admin ? personal.personalSubmit(request, env, user) : auth.forbidden();
       if (path === "/calendar") return inbox.calendarSchedule(request, env, user);
       if ((r = m(/^\/api\/dm\/(\d+)$/))) return inbox.apiDm(request, env, user, +r[1]);

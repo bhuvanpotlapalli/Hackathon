@@ -1,4 +1,5 @@
 // Profiles (view + edit) and mentor–mentee chat on the pair page.
+import { appUrl, mail, pairPeople, sendMails } from "./email";
 import { ALL_PATHS, AREAS, AVAILABILITY, FORMATS, FUN_INTERESTS, clamp, normCareer, splitCourses, type User } from "./logic";
 import { esc, html, layout, options } from "./ui";
 import type { Me } from "./auth";
@@ -20,8 +21,6 @@ export const MESSAGES_SCHEMA = `CREATE TABLE IF NOT EXISTS messages (
 export const PROFILE_MIGRATIONS = [`ALTER TABLE users ADD COLUMN bio TEXT NOT NULL DEFAULT ''`, `ALTER TABLE users ADD COLUMN pronouns TEXT NOT NULL DEFAULT ''`, `ALTER TABLE users ADD COLUMN fun_facts TEXT NOT NULL DEFAULT ''`, `ALTER TABLE users ADD COLUMN experience TEXT NOT NULL DEFAULT ''`];
 
 type Profile = User & { bio?: string; pronouns?: string; fun_facts?: string; experience?: string };
-
-/** A few demo messages for the first pairs, so the chat has something to show. */
 
 // ---------------------------------------------------------------- Profile
 export async function profilePage(env: Env, id: number, url: URL, user: Me): Promise<Response> {
@@ -266,7 +265,24 @@ export async function addMeeting(
   await env.DB.prepare(`INSERT INTO meetings (pair_id, kind, starts_at, minutes, place, link, topic, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`)
     .bind(pairId, m.kind === "In-person" ? "In-person" : "Virtual", m.when, m.minutes, m.kind === "In-person" ? m.place : "", m.kind === "Virtual" && /^https?:\/\//.test(m.link) ? m.link : "", m.topic, new Date().toISOString())
     .run();
+  // Tell both people, whichever page booked it.
+  const people = await pairPeople(env, pairId);
+  const href = appUrl(env, `/pair/${pairId}#meetings`);
+  await sendMails(
+    env,
+    people.map((p) => mail.meeting(p.email, p.name, people.find((o) => o.user_id !== p.user_id)?.name ?? "your mentor", whenLabel(m.when), m.topic, href)),
+  );
 }
+
+/** "2026-12-03T18:00" (Arizona wall time) → "Dec 3, 2026 at 6:00 PM". */
+const whenLabel = (when: string): string => {
+  const match = when.match(/^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2})$/);
+  if (!match) return when;
+  const date = new Date(Date.UTC(+match[1], +match[2] - 1, +match[3], 12));
+  const hour = +match[4];
+  const label = date.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric", timeZone: "UTC" });
+  return `${label} at ${hour % 12 || 12}:${match[5]} ${hour < 12 ? "AM" : "PM"}`;
+};
 
 export async function meetingSubmit(req: Request, env: Env, pairId: number): Promise<Response> {
   const pair = await env.DB.prepare(`SELECT id FROM pairs WHERE id = ?`).bind(pairId).first();
@@ -289,7 +305,16 @@ export async function meetingSubmit(req: Request, env: Env, pairId: number): Pro
 }
 
 export async function meetingCancel(env: Env, pairId: number, id: number): Promise<Response> {
+  const meeting = await env.DB.prepare(`SELECT starts_at FROM meetings WHERE id = ? AND pair_id = ?`).bind(id, pairId).first<{ starts_at: string }>();
   await env.DB.prepare(`DELETE FROM meetings WHERE id = ? AND pair_id = ?`).bind(id, pairId).run();
+  if (meeting) {
+    const people = await pairPeople(env, pairId);
+    const href = appUrl(env, `/pair/${pairId}#meetings`);
+    await sendMails(
+      env,
+      people.map((p) => mail.meetingCancelled(p.email, p.name, people.find((o) => o.user_id !== p.user_id)?.name ?? "your mentor", whenLabel(meeting.starts_at), href)),
+    );
+  }
   return new Response(null, { status: 303, headers: { location: `/pair/${pairId}?cancelled=1#meetings` } });
 }
 

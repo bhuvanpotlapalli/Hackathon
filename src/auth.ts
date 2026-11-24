@@ -1,6 +1,7 @@
 // Accounts, sessions, and access control. Email + password with PBKDF2-SHA256,
 // server-side sessions in D1, and a one-time admin bootstrap.
 import * as db from "./db";
+import { adminPeople, appUrl, mail, mailConfigured, sendMail, sendMails } from "./email";
 import { ALL_PATHS, AREAS, AVAILABILITY, FORMATS, clamp, normCareer } from "./logic";
 import { esc, html, layout, options } from "./ui";
 
@@ -9,6 +10,14 @@ export interface Env {
   AI?: Ai;
   /** Comma-separated emails that become program admins when they sign up. */
   ADMIN_EMAIL?: string;
+  /** Resend API key. Without it the site runs fine and simply sends no email. */
+  RESEND_API_KEY?: string;
+  EMAIL_FROM?: string;
+  EMAIL_REPLY_TO?: string;
+  /** "1" logs emails to the console instead of sending them (local development). */
+  EMAIL_LOG?: string;
+  /** Absolute origin used in email links, e.g. https://fortfein.firebytehack.workers.dev */
+  APP_ORIGIN?: string;
 }
 
 const COOKIE = "ember_session";
@@ -23,9 +32,14 @@ export interface Me {
   userId: number;
   email: string;
   name: string;
-  role: "mentee" | "mentor" | "admin";
+  /** employer = a company contact with an organization (see accounts.org_id). */
+  role: "mentee" | "mentor" | "employer" | "admin";
+  /** Program admin permission, separate from the role above. */
+  admin: boolean;
   /** What the member signed up as, independent of the admin permission. */
   profileRole: "mentee" | "mentor";
+  /** Organization this account manages, for employer accounts. */
+  orgId: number | null;
 }
 
 // ---------------------------------------------------------------- crypto
@@ -87,20 +101,23 @@ export async function me(req: Request, env: Env): Promise<Me | null> {
   const token = cookieValue(req, COOKIE);
   if (!token) return null;
   const row = await env.DB.prepare(
-    `SELECT a.id AS account_id, a.email, a.role AS account_role, a.user_id, u.name, u.role AS user_role
+    `SELECT a.id AS account_id, a.email, a.role AS account_role, a.org_id, a.user_id, u.name, u.role AS user_role
      FROM sessions s JOIN accounts a ON a.id = s.account_id JOIN users u ON u.id = a.user_id
      WHERE s.id = ? AND s.expires_at > ?`,
   )
     .bind(await sha256(token), new Date().toISOString())
-    .first<{ account_id: number; email: string; account_role: string; user_id: number; name: string; user_role: string }>();
+    .first<{ account_id: number; email: string; account_role: string; org_id: number | null; user_id: number; name: string; user_role: string }>();
   if (!row) return null;
   return {
     accountId: row.account_id,
     userId: row.user_id,
     email: row.email,
     name: row.name,
-    role: row.account_role === "admin" ? "admin" : row.user_role === "mentor" ? "mentor" : "mentee",
+    // An employer contact keeps the employer view even if they also administer the program.
+    role: row.org_id ? "employer" : row.account_role === "admin" ? "admin" : row.user_role === "mentor" ? "mentor" : "mentee",
+    admin: row.account_role === "admin",
     profileRole: row.user_role === "mentor" ? "mentor" : "mentee",
+    orgId: row.org_id ?? null,
   };
 }
 
@@ -165,7 +182,7 @@ ${error ? `<div class="notice" role="alert" style="background:#fdecea;border-col
   <label for="email">Email</label><input id="email" name="email" type="email" required autocomplete="email" maxlength="200">
   <label for="password">Password</label><input id="password" name="password" type="password" required autocomplete="current-password">
   <button class="btn" type="submit" style="margin-top:1rem;width:100%">Sign in</button>
-  <p class="muted" style="font-size:.9rem;margin-top:.8rem">New here? <a href="/signup">Create an account</a>. Forgotten your password? Ask a program admin for a reset link.</p>
+  <p class="muted" style="font-size:.9rem;margin-top:.8rem">New here? <a href="/signup">Create an account</a> · <a href="/forgot">Forgot your password?</a></p>
 </form>`;
   return html(layout("Sign in", body, "/login"));
 }
@@ -204,7 +221,13 @@ ${error ? `<div class="notice" role="alert" style="background:#fdecea;border-col
   <fieldset><legend><b>I want to…</b></legend>
     <label class="check"><input type="radio" name="role" value="mentee" ${form.role !== "mentor" ? "checked" : ""} onchange="roleChange()"> Find a mentor</label>
     <label class="check"><input type="radio" name="role" value="mentor" ${form.role === "mentor" ? "checked" : ""} onchange="roleChange()"> Be a mentor</label>
+    <label class="check"><input type="radio" name="role" value="employer" ${form.role === "employer" ? "checked" : ""} onchange="roleChange()"> I represent an employer</label>
   </fieldset>
+  <div id="employerBox" style="display:none">
+    <label for="org">Organization</label><input id="org" name="org" maxlength="120" value="${esc(form.org ?? "")}" placeholder="e.g. Saguaro Health">
+    <label for="website">Organization website (optional)</label><input id="website" name="website" maxlength="300" value="${esc(form.website ?? "")}" placeholder="https://">
+    <p class="muted" style="font-size:.85rem;margin:.2rem 0 0">Your account posts roles and prep courses for this organization, and sees which students fit.</p>
+  </div>
   <div class="two">
     <div><label for="name">Name</label><input id="name" name="name" required maxlength="80" autocomplete="name" value="${esc(form.name ?? "")}"></div>
     <div><label for="email">Email</label><input id="email" name="email" type="email" required maxlength="200" autocomplete="email" value="${esc(form.email ?? "")}"></div>
@@ -233,11 +256,13 @@ ${error ? `<div class="notice" role="alert" style="background:#fdecea;border-col
   <p class="muted" style="font-size:.9rem;margin-top:.6rem">Already have an account? <a href="/login">Sign in</a></p>
 </form>
 <script>
-function roleChange(){var m=document.querySelector('input[name=role]:checked').value==='mentor';
+function roleChange(){var r=document.querySelector('input[name=role]:checked').value,m=r==='mentor',e=r==='employer';
 document.getElementById('capBox').style.display=m?'block':'none';
-document.getElementById('coursesLabel').textContent=m?'Courses you have taken or teach':'Courses you are taking or have taken';
-document.getElementById('goalLabel').textContent=m?'What you can help with':'Your main goal';
-document.getElementById('headlineLabel').textContent=m?'Your role':'Where you are now';}
+document.getElementById('employerBox').style.display=e?'block':'none';
+document.getElementById('courses').required=!e;document.getElementById('goal').required=!e;
+document.getElementById('coursesLabel').textContent=e?'Coursework you want students to have (optional)':m?'Courses you have taken or teach':'Courses you are taking or have taken';
+document.getElementById('goalLabel').textContent=e?'What you are hiring for (optional)':m?'What you can help with':'Your main goal';
+document.getElementById('headlineLabel').textContent=e?'Your title':'Where you are now';}
 roleChange();
 </script>`;
   return html(layout("Create account", body, "/signup"));
@@ -245,16 +270,32 @@ roleChange();
 
 export async function signupSubmit(req: Request, env: Env): Promise<Response> {
   const f = await req.formData();
-  const role = field(f, "role", 20) === "mentor" ? "mentor" : "mentee";
+  const roleField = field(f, "role", 20);
+  const role: "mentee" | "mentor" | "employer" = roleField === "mentor" ? "mentor" : roleField === "employer" ? "employer" : "mentee";
+  const employer = role === "employer";
   const name = field(f, "name", 80);
   const email = field(f, "email", 200).toLowerCase();
   const password = String(f.get("password") ?? "");
   const password2 = String(f.get("password2") ?? "");
   const goal = field(f, "goal", 200);
   const courses = field(f, "courses", 400);
-  const form = { role, name, email, goal, courses, career: field(f, "career", 60), headline: field(f, "headline", 120), school: field(f, "school", 120) };
+  const orgName = field(f, "org", 120);
+  const area = AREAS.includes(field(f, "area", 40)) ? field(f, "area", 40) : AREAS[0];
+  const form = {
+    role,
+    name,
+    email,
+    goal,
+    courses,
+    career: field(f, "career", 60),
+    headline: field(f, "headline", 120),
+    school: field(f, "school", 120),
+    org: orgName,
+    website: field(f, "website", 300),
+  };
   const fail = (msg: string) => signupPage(msg, form);
-  if (!name || !goal || !courses) return fail("Add your name, courses and goal.");
+  if (!name) return fail("Add your name.");
+  if (employer ? !orgName : !goal || !courses) return fail(employer ? "Add the name of the organization you work for." : "Add your courses and goal.");
   if (!validEmail(email)) return fail("Enter a valid email address.");
   if (password.length < MIN_PASSWORD) return fail(`Use at least ${MIN_PASSWORD} characters for your password.`);
   if (password !== password2) return fail("The two passwords don't match.");
@@ -262,33 +303,64 @@ export async function signupSubmit(req: Request, env: Env): Promise<Response> {
   if (!f.get("consent")) return fail("Please tick the data consent box so we can match you.");
   const taken = await env.DB.prepare(`SELECT id FROM accounts WHERE email = ?`).bind(email).first<{ id: number }>();
   if (taken) return fail("An account with that email already exists. Try signing in.");
+  if (employer) {
+    const listed = await env.DB.prepare(`SELECT id FROM orgs WHERE name = ?`).bind(orgName).first<{ id: number }>();
+    if (listed) return fail("That organization is already listed. Ask the program team to attach your account to it.");
+  }
   const userId = await db.createUser(env.DB, {
     name,
-    role,
+    // Employer contacts keep a mentor-shaped profile row so they can message students and appear in the directory.
+    role: employer ? "mentor" : role === "mentor" ? "mentor" : "mentee",
     career: normCareer(form.career),
     no_degree: f.get("no_degree") ? 1 : 0,
-    goal,
+    goal: employer ? `Hiring for ${orgName}` : goal,
     headline: form.headline,
-    courses,
+    courses: employer ? "" : courses,
     school: form.school,
     availability: AVAILABILITY.includes(field(f, "availability", 40)) ? field(f, "availability", 40) : AVAILABILITY[0],
     format: FORMATS.includes(field(f, "format", 20)) ? field(f, "format", 20) : "Both",
-    area: AREAS.includes(field(f, "area", 40)) ? field(f, "area", 40) : AREAS[0],
-    confidence: clamp(parseInt(field(f, "confidence", 2), 10) || 5, 1, 10),
+    area,
+    confidence: employer ? 5 : clamp(parseInt(field(f, "confidence", 2), 10) || 5, 1, 10),
     capacity: role === "mentor" ? clamp(parseInt(field(f, "capacity", 2), 10) || 2, 1, 20) : 0,
   });
+  let orgId: number | null = null;
+  if (employer) {
+    const web = form.website;
+    const org = await env.DB.prepare(`INSERT INTO orgs (name, kind, about, website, area, created_at) VALUES (?, ?, ?, ?, ?, ?) RETURNING id`)
+      .bind(orgName, "Company", "", /^https?:\/\//.test(web) ? web : "", area, new Date().toISOString())
+      .first<{ id: number }>();
+    orgId = org!.id;
+  }
   // ADMIN_EMAIL (or, failing that, the very first account) is the program admin,
   // so a fresh install always has someone who can post opportunities and invite people.
   const others = await env.DB.prepare(`SELECT COUNT(*) AS n FROM accounts`).first<{ n: number }>();
   const allowed = (env.ADMIN_EMAIL ?? "").split(",").map((e) => e.trim().toLowerCase()).filter(Boolean);
+  // The very first account bootstraps the program even if it is an employer contact, so a fresh
+  // install always has someone who can administer it.
   const admin = allowed.includes(email) || !others || others.n === 0;
-  const row = await env.DB.prepare(`INSERT INTO accounts (user_id, email, pass_hash, role, created_at) VALUES (?, ?, ?, ?, ?) RETURNING id`)
-    .bind(userId, email, await hashPassword(password), admin ? "admin" : "member", new Date().toISOString())
+  const row = await env.DB.prepare(`INSERT INTO accounts (user_id, email, pass_hash, role, org_id, created_at) VALUES (?, ?, ?, ?, ?, ?) RETURNING id`)
+    .bind(userId, email, await hashPassword(password), admin ? "admin" : "member", orgId, new Date().toISOString())
     .first<{ id: number }>();
   const res = await startSession(env, row!.id);
+  // Welcome the member and tell the program team who joined. Both are best effort.
+  const home = employer ? "/employer" : "/home";
+  await sendMail(
+    env,
+    mail.welcome(email, name, employer ? `an employer contact for ${orgName}` : role === "mentor" ? "a mentor" : "a mentee", appUrl(env, home)),
+  );
+  const admins = await adminPeople(env);
+  await sendMails(
+    env,
+    admins
+      .filter((a) => a.email !== email)
+      .map((a) => mail.newMember(a.email, a.name, name, email, employer ? "employer" : role === "mentor" ? "mentor" : "mentee", appUrl(env, "/admin/accounts"))),
+  );
   return new Response(null, {
     status: 303,
-    headers: { location: role === "mentor" ? `/mentor/${userId}` : `/matches/${userId}?new=1`, "set-cookie": res.headers.get("set-cookie")! },
+    headers: {
+      location: employer ? "/employer" : role === "mentor" ? `/mentor/${userId}` : `/matches/${userId}?new=1`,
+      "set-cookie": res.headers.get("set-cookie")!,
+    },
   });
 }
 
@@ -296,9 +368,11 @@ export async function signupSubmit(req: Request, env: Env): Promise<Response> {
 export async function accountPage(req: Request, env: Env, url: URL): Promise<Response> {
   const user = (await me(req, env))!;
   const body = `
-<div class="banner"><h1>Your account</h1><p>${esc(user.email)} · ${user.role === "admin" ? "Program admin" : user.role === "mentor" ? "Mentor" : "Mentee"}</p></div>
+<div class="banner"><h1>Your account</h1><p>${esc(user.email)} · ${user.role === "admin" ? "Program admin" : user.role === "employer" ? "Employer contact" : user.role === "mentor" ? "Mentor" : "Mentee"}</p></div>
 ${url.searchParams.get("saved") ? `<div class="notice">Account updated.</div>` : ""}
 ${url.searchParams.get("badsaved") ? `<div class="notice" role="alert" style="background:#fdecea;border-color:#f5c2bd;color:#7a1f16">Could not change your password. Check your current password and use at least ${MIN_PASSWORD} characters.</div>` : ""}
+${url.searchParams.get("baddelete") ? `<div class="notice" role="alert" style="background:#fdecea;border-color:#f5c2bd;color:#7a1f16">Your account was not deleted. Check your password and type <b>delete</b> to confirm.</div>` : ""}
+${url.searchParams.get("lastadmin") ? `<div class="notice" role="alert" style="background:#fdecea;border-color:#f5c2bd;color:#7a1f16">You are the last admin. Make someone else an admin before deleting your account.</div>` : ""}
 <div class="two" style="align-items:start">
   <div class="card"><h2 style="font-size:1.2rem;margin-top:0">Change password</h2>
     <form method="post" action="/account/password">
@@ -309,10 +383,21 @@ ${url.searchParams.get("badsaved") ? `<div class="notice" role="alert" style="ba
     </form></div>
   <div class="card"><h2 style="font-size:1.2rem;margin-top:0">Your profile</h2>
     <p class="muted">Your name, courses, goal, availability and bio live on your profile.</p>
-    <a class="btn ghost" href="/profile/${user.userId}">Edit my profile</a>
-    ${user.role === "admin" ? `<a class="btn ghost" href="/admin/accounts">Manage accounts</a>` : ""}
+    ${user.role === "employer" ? `<a class="btn ghost" href="/employer">Employer dashboard</a>` : `<a class="btn ghost" href="/profile/${user.userId}">Edit my profile</a>`}
+    ${user.admin ? `<a class="btn ghost" href="/admin/accounts">Manage accounts</a>` : ""}
     <form method="post" action="/logout" style="margin-top:.8rem"><button class="btn ghost" type="submit">Sign out</button></form>
   </div>
+</div>
+<div class="card" style="margin-top:1rem;border-color:#f5c2bd">
+  <h2 style="font-size:1.2rem;margin-top:0">Delete my account</h2>
+  <p class="muted">This removes your account, your pairs, meetings, messages and courses for good. Download anything you want to keep first.</p>
+  <form method="post" action="/account/delete" onsubmit="return confirm('Delete your account and all of its data? This cannot be undone.')">
+    <div class="two">
+      <div><label for="dpassword">Your password</label><input id="dpassword" name="password" type="password" required autocomplete="current-password"></div>
+      <div><label for="dconfirm">Type delete to confirm</label><input id="dconfirm" name="confirm" required pattern="delete" title="Type the word delete"></div>
+    </div>
+    <button class="btn" type="submit" style="margin-top:1rem;background:#b3261e">Delete my account</button>
+  </form>
 </div>`;
   return html(layout("Account", body, "/account"));
 }
@@ -378,12 +463,12 @@ export async function resetSubmit(req: Request, env: Env): Promise<Response> {
 // ---------------------------------------------------------------- admin: accounts
 export async function adminAccounts(req: Request, env: Env, url: URL): Promise<Response> {
   const rows = await env.DB.prepare(
-    `SELECT a.id, a.email, a.role, a.created_at, u.name, u.role AS user_role,
+    `SELECT a.id, a.email, a.role, a.org_id, a.created_at, u.name, u.role AS user_role, o.name AS org_name,
       (SELECT COUNT(*) FROM sessions s WHERE s.account_id = a.id AND s.expires_at > ?) AS sessions
-     FROM accounts a JOIN users u ON u.id = a.user_id ORDER BY a.created_at`,
+     FROM accounts a JOIN users u ON u.id = a.user_id LEFT JOIN orgs o ON o.id = a.org_id ORDER BY a.created_at`,
   )
     .bind(new Date().toISOString())
-    .all<{ id: number; email: string; role: string; created_at: string; name: string; user_role: string; sessions: number }>();
+    .all<{ id: number; email: string; role: string; org_id: number | null; org_name: string | null; created_at: string; name: string; user_role: string; sessions: number }>();
   const link = url.searchParams.get("link") ?? "";
   const origin = new URL(url).origin;
   const body = `
@@ -393,16 +478,19 @@ ${link ? `<div class="notice">One-time reset link (share it privately, it expire
 ${url.searchParams.get("role") ? `<div class="notice">Role updated.</div>` : ""}
 ${url.searchParams.get("self") ? `<div class="notice" role="alert">You cannot remove your own admin access. Ask another admin to do it.</div>` : ""}
 ${url.searchParams.get("last") ? `<div class="notice" role="alert">That is the last admin account. Make someone else an admin first.</div>` : ""}
+${url.searchParams.get("removed") ? `<div class="notice">Account and its data deleted.</div>` : ""}
+${url.searchParams.get("emailed") ? `<div class="notice">Reset link emailed to the member.</div>` : ""}
 <div class="card"><h2 style="font-size:1.2rem;margin-top:0">${rows.results.length} account${rows.results.length === 1 ? "" : "s"}</h2>
 ${rows.results
   .map(
     (a) => `<div class="dm" style="cursor:default">
   <span class="pavatar sm">${esc(a.name.split(" ").map((w) => w[0]).join("").slice(0, 2).toUpperCase())}</span>
-  <span class="tbody"><span class="tname">${esc(a.name)} ${a.role === "admin" ? `<span class="chip sage">Admin</span>` : ""}</span>
-  <span class="tlast">${esc(a.email)} · ${esc(a.user_role)} · joined ${esc(a.created_at.slice(0, 10))}${a.sessions ? ` · ${a.sessions} active session${a.sessions === 1 ? "" : "s"}` : ""}</span></span>
-  <span class="row" style="gap:.3rem">
+  <span class="tbody"><span class="tname">${esc(a.name)} ${a.role === "admin" ? `<span class="chip sage">Admin</span>` : ""}${a.org_id ? `<span class="chip">Employer</span>` : ""}</span>
+  <span class="tlast">${esc(a.email)} · ${a.org_name ? esc(a.org_name) : esc(a.user_role)} · joined ${esc(a.created_at.slice(0, 10))}${a.sessions ? ` · ${a.sessions} active session${a.sessions === 1 ? "" : "s"}` : ""}</span></span>
+  <span class="row" style="gap:.3rem;flex-wrap:wrap">
     <form method="post" action="/admin/accounts/${a.id}/reset"><button class="btn small ghost" type="submit">Reset link</button></form>
     <form method="post" action="/admin/accounts/${a.id}/role"><input type="hidden" name="role" value="${a.role === "admin" ? "member" : "admin"}"><button class="btn small ghost" type="submit">${a.role === "admin" ? "Remove admin" : "Make admin"}</button></form>
+    <form method="post" action="/admin/accounts/${a.id}/delete" onsubmit="return confirm('Delete ${esc(a.name.replace(/'/g, "\\'"))} and all of their data? This cannot be undone.')"><button class="btn small ghost" type="submit" style="border-color:#f5c2bd;color:#b3261e">Delete</button></form>
   </span>
 </div>`,
   )
@@ -414,15 +502,13 @@ ${rows.results
 export async function adminIssueReset(req: Request, env: Env, accountId: number): Promise<Response> {
   const account = await env.DB.prepare(`SELECT id FROM accounts WHERE id = ?`).bind(accountId).first<{ id: number }>();
   if (!account) return new Response(null, { status: 303, headers: { location: "/admin/accounts" } });
-  const token = randomToken(24);
-  const now = Date.now();
-  // Only the hash is stored, so a leaked database cannot be used to reset accounts.
-  await env.DB.batch([
-    env.DB.prepare(`DELETE FROM password_resets WHERE expires_at <= ? OR used = 1`).bind(new Date(now).toISOString()),
-    env.DB.prepare(`INSERT INTO password_resets (token, account_id, expires_at, used) VALUES (?, ?, ?, 0)`)
-      .bind(await sha256(token), accountId, new Date(now + 864e5).toISOString()),
-  ]);
-  return new Response(null, { status: 303, headers: { location: `/admin/accounts?link=${token}` } });
+  const token = await issueReset(env, accountId);
+  // Email it when a sender is configured; the link is also shown on the accounts page as a fallback.
+  const who = await env.DB.prepare(`SELECT a.email, u.name FROM accounts a JOIN users u ON u.id = a.user_id WHERE a.id = ?`)
+    .bind(accountId)
+    .first<{ email: string; name: string }>();
+  const sent = who ? await sendMail(env, mail.reset(who.email, who.name, appUrl(env, `/reset?token=${token}`))) : false;
+  return new Response(null, { status: 303, headers: { location: `/admin/accounts?link=${token}${sent ? "&emailed=1" : ""}` } });
 }
 
 export async function adminSetRole(req: Request, env: Env, accountId: number): Promise<Response> {
@@ -438,6 +524,91 @@ export async function adminSetRole(req: Request, env: Env, accountId: number): P
   }
   await env.DB.prepare(`UPDATE accounts SET role = ? WHERE id = ?`).bind(role, accountId).run();
   return back("role=1");
+}
+
+// ---------------------------------------------------------------- forgot password
+/** Creates a one-time reset token and returns the raw value (only its hash is stored). */
+async function issueReset(env: Env, accountId: number): Promise<string> {
+  const token = randomToken(24);
+  const now = Date.now();
+  await env.DB.batch([
+    env.DB.prepare(`DELETE FROM password_resets WHERE expires_at <= ? OR used = 1`).bind(new Date(now).toISOString()),
+    env.DB.prepare(`INSERT INTO password_resets (token, account_id, expires_at, used) VALUES (?, ?, ?, 0)`)
+      .bind(await sha256(token), accountId, new Date(now + 864e5).toISOString()),
+  ]);
+  return token;
+}
+
+export function forgotPage(notice = "", error = ""): Response {
+  const body = `
+<div class="banner"><h1>Forgot your password?</h1><p>We email you a link that works once and expires in 24 hours.</p></div>
+${error ? `<div class="notice" role="alert" style="background:#fdecea;border-color:#f5c2bd;color:#7a1f16">${esc(error)}</div>` : ""}
+${notice ? `<div class="notice">${esc(notice)}</div>` : ""}
+<form method="post" action="/forgot" class="card" style="max-width:26rem">
+  <label for="email">Email</label><input id="email" name="email" type="email" required maxlength="200" autocomplete="email">
+  <button class="btn" type="submit" style="margin-top:1rem;width:100%">Email me a reset link</button>
+  <p class="muted" style="font-size:.9rem;margin-top:.8rem">Remembered it? <a href="/login">Sign in</a>. No email coming? Ask the program team for a link.</p>
+</form>`;
+  return html(layout("Forgot your password", body, ""));
+}
+
+export async function forgotSubmit(req: Request, env: Env): Promise<Response> {
+  const f = await req.formData();
+  const email = field(f, "email", 200).toLowerCase();
+  if (!validEmail(email)) return forgotPage("", "Enter a valid email address.");
+  const account = await env.DB.prepare(`SELECT a.id, u.name FROM accounts a JOIN users u ON u.id = a.user_id WHERE a.email = ?`)
+    .bind(email)
+    .first<{ id: number; name: string }>();
+  if (account) {
+    // Don't stack links, and don't let a stranger hammer an address.
+    const recent = await env.DB.prepare(`SELECT 1 AS x FROM password_resets WHERE account_id = ? AND used = 0 AND expires_at > ?`)
+      .bind(account.id, new Date(Date.now() + 23.5 * 3600e3).toISOString())
+      .first();
+    if (!recent) {
+      const token = await issueReset(env, account.id);
+      await sendMail(env, mail.reset(email, account.name, appUrl(env, `/reset?token=${token}`)));
+    }
+  }
+  // Same answer either way, so the form cannot be used to find out who has an account.
+  return forgotPage(
+    mailConfigured(env)
+      ? "If that email has an account, a reset link is on its way. Check your inbox and spam folder."
+      : "If that email has an account, the program team can send a link. Email sending is not switched on yet, so ask them directly.",
+  );
+}
+
+// ---------------------------------------------------------------- delete account
+export async function deleteOwnAccount(req: Request, env: Env): Promise<Response> {
+  const user = await me(req, env);
+  if (!user) return new Response(null, { status: 303, headers: { location: "/login" } });
+  const f = await req.formData();
+  const password = String(f.get("password") ?? "");
+  const bad = new Response(null, { status: 303, headers: { location: "/account?baddelete=1" } });
+  if (field(f, "confirm", 10) !== "delete") return bad;
+  const account = await env.DB.prepare(`SELECT pass_hash, role FROM accounts WHERE id = ?`).bind(user.accountId).first<{ pass_hash: string; role: string }>();
+  if (!account || !(await verifyPassword(password, account.pass_hash))) return bad;
+  if (account.role === "admin") {
+    const admins = await env.DB.prepare(`SELECT COUNT(*) AS n FROM accounts WHERE role = 'admin'`).first<{ n: number }>();
+    if ((admins?.n ?? 0) <= 1) return new Response(null, { status: 303, headers: { location: "/account?lastadmin=1" } });
+  }
+  const who = await db.deleteAccount(env.DB, user.accountId);
+  if (who) await sendMail(env, mail.deleted(who.email, who.name));
+  return new Response(null, { status: 303, headers: { location: "/login?deleted=1", "set-cookie": sessionCookie("", 0) } });
+}
+
+export async function adminDeleteAccount(req: Request, env: Env, accountId: number): Promise<Response> {
+  const back = (q: string) => new Response(null, { status: 303, headers: { location: `/admin/accounts?${q}` } });
+  const current = await me(req, env);
+  if (current && current.accountId === accountId) return back("self=1");
+  const account = await env.DB.prepare(`SELECT role FROM accounts WHERE id = ?`).bind(accountId).first<{ role: string }>();
+  if (!account) return back("");
+  if (account.role === "admin") {
+    const admins = await env.DB.prepare(`SELECT COUNT(*) AS n FROM accounts WHERE role = 'admin'`).first<{ n: number }>();
+    if ((admins?.n ?? 0) <= 1) return back("last=1");
+  }
+  const who = await db.deleteAccount(env.DB, accountId);
+  if (who) await sendMail(env, mail.deletedByAdmin(who.email, who.name));
+  return back("removed=1");
 }
 
 /** Small helper for page code: a 403 with a way back. */

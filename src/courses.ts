@@ -183,13 +183,18 @@ ${url.searchParams.get("missing") ? `<div class="notice" role="alert" style="bac
   return html(layout("Share a course", body, "/courses"));
 }
 
-export async function courseSubmit(req: Request, env: Env, user?: { userId: number; name: string; role: string }): Promise<Response> {
+export async function courseSubmit(req: Request, env: Env, user?: { userId: number; name: string; role: string; accountId?: number; orgId?: number | null }): Promise<Response> {
   const f = await req.formData();
   const s = (k: string, max: number) => String(f.get(k) ?? "").trim().slice(0, max);
   const pick = (k: string, list: string[]) => (list.includes(s(k, 60)) ? s(k, 60) : list[0]);
   const title = s("title", 120);
-  // Mentors publish under their own name; admins can publish on behalf of an employer.
-  const author = user && user.role !== "admin" ? user.name.slice(0, 80) : s("author", 80);
+  // Mentors publish under their own name; employer contacts publish under their organization;
+  // admins can publish on behalf of anyone.
+  let author = user && user.role !== "admin" ? user.name.slice(0, 80) : s("author", 80);
+  if (user?.role === "employer" && user.orgId) {
+    const org = await env.DB.prepare(`SELECT name FROM orgs WHERE id = ?`).bind(user.orgId).first<{ name: string }>();
+    if (org) author = org.name.slice(0, 80);
+  }
   if (!title || !author) {
     const back = new URL(req.url);
     back.searchParams.set("missing", "1");
@@ -199,13 +204,13 @@ export async function courseSubmit(req: Request, env: Env, user?: { userId: numb
   const opp = oppId ? await getOpp(env.DB, oppId) : null;
   const link = s("link", 300);
   await env.DB.prepare(
-    `INSERT INTO courses (title, provider, author, author_kind, opp_id, career, level, cost, format, length, tags, description, link, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+    `INSERT INTO courses (title, provider, author, author_kind, opp_id, career, level, cost, format, length, tags, description, link, account_id, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
   )
     .bind(
-      title, s("provider", 80), author, user && user.role !== "admin" ? "Mentor" : pick("author_kind", AUTHOR_KINDS), opp ? opp.id : null, pick("career", FORM_PATHS), pick("level", LEVELS),
+      title, s("provider", 80), author, user?.role === "employer" ? "Employer" : user && user.role !== "admin" ? "Mentor" : pick("author_kind", AUTHOR_KINDS), opp ? opp.id : null, pick("career", FORM_PATHS), pick("level", LEVELS),
       pick("cost", COSTS), pick("format", COURSE_FORMATS), s("length", 40),
       splitCourses(s("tags", 200)).slice(0, 8).map((t) => t.toLowerCase()).join(", "), s("description", 400),
-      /^https?:\/\//.test(link) ? link : "", new Date().toISOString(),
+      /^https?:\/\//.test(link) ? link : "", user?.accountId ?? null, new Date().toISOString(),
     )
     .run();
   return new Response(null, { status: 303, headers: { location: opp ? `/opportunities/${opp.id}?course=1` : "/courses?added=1" } });

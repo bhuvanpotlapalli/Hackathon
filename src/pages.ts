@@ -4,6 +4,7 @@ import * as ai from "./ai";
 import * as db from "./db";
 import { oppCoursesBlock } from "./courses";
 import { chatBlock, meetingsBlock } from "./social";
+import { appUrl, mail, menteePeople, pairPeople, sendMails } from "./email";
 import type { Me } from "./auth";
 import {
   AREAS,
@@ -201,7 +202,7 @@ export async function home(env: Env, user: Me | null): Promise<Response> {
 
 // ---------------------------------------------------------------- Dashboard
 export async function dashboard(env: Env, user: Me): Promise<Response> {
-  const admin = user.role === "admin";
+  const admin = user.admin;
   const { results: pairs } = await env.DB.prepare(
     `SELECT p.id, p.goal, p.created_at, p.mentor_id, p.mentee_id, mu.name AS mentor_name, eu.name AS mentee_name
      FROM pairs p JOIN users mu ON mu.id = p.mentor_id JOIN users eu ON eu.id = p.mentee_id
@@ -594,6 +595,12 @@ export async function nudge(env: Env, pairId: number): Promise<Response> {
   const first = (s: string) => s.split(" ")[0];
   const message = `Hi ${first(pair.mentee_name)} and ${first(pair.mentor_name)}! A 15-minute call this week keeps your flame going 🕯️ Next up: ${pair.goal}`;
   await db.addNudge(env.DB, pairId, message);
+  const people = await pairPeople(env, pairId);
+  const href = appUrl(env, `/pair/${pairId}`);
+  await sendMails(
+    env,
+    people.map((p) => mail.nudge(p.email, p.name, people.find((o) => o.user_id !== p.user_id)?.name ?? "your partner", message, href)),
+  );
   return Response.json({ ok: true, message });
 }
 
@@ -653,11 +660,12 @@ export async function oppSubmit(req: Request, env: Env): Promise<Response> {
   const org = str(f, "org", 120);
   if (!title || !org) return oppForm();
   const link = str(f, "link", 300);
+  const career = normCareer(str(f, "career", 60));
   const id = await db.createOpportunity(env.DB, {
     kind: pick("kind", OPP_KINDS),
     title,
     org,
-    career: normCareer(str(f, "career", 60)),
+    career,
     courses: str(f, "courses", 400),
     area: pick("area", AREAS),
     format: pick("format", FORMATS),
@@ -665,6 +673,10 @@ export async function oppSubmit(req: Request, env: Env): Promise<Response> {
     link: /^https?:\/\//.test(link) ? link : "",
     deadline: /^\d{4}-\d{2}-\d{2}$/.test(str(f, "deadline")) ? str(f, "deadline") : "",
   });
+  // Let students on this path know; email problems never block publishing.
+  const people = await menteePeople(env, career);
+  const href = appUrl(env, `/opportunities/${id}`);
+  await sendMails(env, people.map((p) => mail.opportunity(p.email, p.name, title, org, href)));
   return redirect(`/opportunities/${id}?posted=1`);
 }
 

@@ -1,6 +1,7 @@
 // Direct messages between members and the shared calendar. Everything is scoped to
 // the signed-in account: you only see conversations you are part of and pairs you belong to.
 import type { Me } from "./auth";
+import { appUrl, mail, sendMail } from "./email";
 import { addMeeting } from "./social";
 import { esc, html, layout, options } from "./ui";
 
@@ -44,7 +45,7 @@ const initials = (name: string) =>
     .toUpperCase();
 
 export async function apiMe(env: Env, user: Me): Promise<Response> {
-  return Response.json({ user: { id: user.userId, name: user.name, role: user.role, href: "/account" } });
+  return Response.json({ user: { id: user.userId, name: user.name, role: user.role, admin: user.admin, href: "/account" } });
 }
 
 async function person(env: Env, id: number): Promise<Person | null> {
@@ -168,6 +169,28 @@ load();setInterval(load,5000);})();
   return html(layout(`Chat with ${peer.name}`, body, "/messages"));
 }
 
+/** Emails the other person, unless they have written in this thread during the last half hour. */
+async function notifyPeer(
+  env: Env,
+  t: { id: number; a_key: string; b_key: string },
+  user: Me,
+  text: string,
+): Promise<void> {
+  const myKey = key(user.userId);
+  const peerKey = t.a_key === myKey ? t.b_key : t.a_key;
+  const peerId = parseInt(peerKey.slice(2), 10) || 0;
+  if (!peerId) return;
+  const active = await env.DB.prepare(`SELECT 1 AS x FROM dm_messages WHERE thread_id = ? AND sender_key = ? AND created_at > ?`)
+    .bind(t.id, peerKey, new Date(Date.now() - 30 * 60e3).toISOString())
+    .first();
+  if (active) return;
+  const peer = await env.DB.prepare(`SELECT u.name, a.email FROM users u JOIN accounts a ON a.user_id = u.id WHERE u.id = ?`)
+    .bind(peerId)
+    .first<{ name: string; email: string }>();
+  if (!peer) return;
+  await sendMail(env, mail.message(peer.email, peer.name, user.name, text, appUrl(env, `/messages/u:${user.userId}`)));
+}
+
 export async function apiDm(req: Request, env: Env, user: Me, threadId: number): Promise<Response> {
   const t = await env.DB.prepare(`SELECT id, a_key, b_key FROM dm_threads WHERE id = ?`).bind(threadId).first<{ id: number; a_key: string; b_key: string }>();
   if (!t) return Response.json({ error: "Conversation not found" }, { status: 404 });
@@ -182,6 +205,7 @@ export async function apiDm(req: Request, env: Env, user: Me, threadId: number):
     const text = typeof b.body === "string" ? b.body.trim().slice(0, 600) : "";
     if (!text) return Response.json({ error: "Write a message first." }, { status: 400 });
     await env.DB.prepare(`INSERT INTO dm_messages (thread_id, sender_key, body, created_at) VALUES (?, ?, ?, ?)`).bind(threadId, key(user.userId), text, new Date().toISOString()).run();
+    await notifyPeer(env, t, user, text);
   }
   const { results } = await env.DB.prepare(`SELECT id, sender_key, body, created_at FROM dm_messages WHERE thread_id = ? ORDER BY created_at ASC, id ASC LIMIT 200`).bind(threadId).all<{
     id: number;
@@ -250,7 +274,7 @@ export async function calendarPage(env: Env, user: Me, url: URL): Promise<Respon
     return `${d.getUTCFullYear()}-${pad2(d.getUTCMonth() + 1)}`;
   };
   const monthName = new Date(Date.UTC(y, mo, 1)).toLocaleDateString("en-US", { month: "long", year: "numeric", timeZone: "UTC" });
-  const admin = user.role === "admin";
+  const admin = user.admin;
   const where = admin ? "" : ` WHERE p.mentor_id = ? OR p.mentee_id = ?`;
   const binds = admin ? [] : [user.userId, user.userId];
   const meetSql = `SELECT m.*, p.mentor_id, p.mentee_id, mu.name AS mentor_name, eu.name AS mentee_name
@@ -356,7 +380,7 @@ export async function calendarSchedule(req: Request, env: Env, user: Me): Promis
   const pairId = parseInt(s("pair", 10), 10) || 0;
   const when = s("starts_at", 16);
   const pair =
-    user.role === "admin"
+    user.admin
       ? await env.DB.prepare(`SELECT id FROM pairs WHERE id = ?`).bind(pairId).first<{ id: number }>()
       : await env.DB.prepare(`SELECT id FROM pairs WHERE id = ? AND (mentor_id = ? OR mentee_id = ?)`).bind(pairId, user.userId, user.userId).first<{ id: number }>();
   if (!pair) return new Response(null, { status: 303, headers: { location: "/calendar?bad=1" } });

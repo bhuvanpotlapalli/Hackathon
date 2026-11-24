@@ -116,6 +116,10 @@ export function ensureDb(db: D1Database): Promise<void> {
       // Older databases: add columns introduced after the first launch.
       await db.prepare(`ALTER TABLE users ADD COLUMN interests TEXT NOT NULL DEFAULT ''`).run().catch(() => {});
       for (const m of PROFILE_MIGRATIONS) await db.prepare(m).run().catch(() => {});
+      // Employer accounts (org_id) and who posted each opportunity/course.
+      await db.prepare(`ALTER TABLE accounts ADD COLUMN org_id INTEGER`).run().catch(() => {});
+      await db.prepare(`ALTER TABLE opportunities ADD COLUMN account_id INTEGER`).run().catch(() => {});
+      await db.prepare(`ALTER TABLE courses ADD COLUMN account_id INTEGER`).run().catch(() => {});
       // One-time cleanup: this deployment started as a hackathon demo with fictional people.
       // Remove those rows so the live program only ever contains real accounts.
       const purged = await db.prepare(`SELECT v FROM meta WHERE k = 'purge_demo_v1'`).first<{ v: string }>();
@@ -177,8 +181,10 @@ export function getUser(db: D1Database, id: number) {
 export async function listMentors(db: D1Database) {
   const { results } = await db
     .prepare(
+      // Employer contacts keep a mentor-shaped row, but they are not mentors to be matched with.
       `SELECT u.*, (SELECT COUNT(*) FROM pairs p WHERE p.mentor_id = u.id AND p.active = 1) AS active_pairs
-       FROM users u WHERE u.role = 'mentor'`,
+       FROM users u WHERE u.role = 'mentor'
+         AND NOT EXISTS (SELECT 1 FROM accounts a WHERE a.user_id = u.id AND a.org_id IS NOT NULL)`,
     )
     .all<User & { active_pairs: number }>();
   return results;
@@ -285,15 +291,56 @@ export async function listOpportunities(db: D1Database) {
   return results;
 }
 
-export async function createOpportunity(db: D1Database, o: Omit<Opportunity, "id" | "created_at">): Promise<number> {
+export async function createOpportunity(db: D1Database, o: Omit<Opportunity, "id" | "created_at">, accountId: number | null = null): Promise<number> {
   const row = await db
     .prepare(
-      `INSERT INTO opportunities (kind, title, org, career, courses, area, format, description, link, deadline, created_at)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?) RETURNING id`,
+      `INSERT INTO opportunities (kind, title, org, career, courses, area, format, description, link, deadline, account_id, created_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?) RETURNING id`,
     )
-    .bind(o.kind, o.title, o.org, o.career, o.courses, o.area, o.format, o.description, o.link, o.deadline, new Date().toISOString())
+    .bind(o.kind, o.title, o.org, o.career, o.courses, o.area, o.format, o.description, o.link, o.deadline, accountId, new Date().toISOString())
     .first<{ id: number }>();
   return row!.id;
+}
+
+/**
+ * Deletes an account and everything that belongs to it: pairs with their check-ins, milestones,
+ * meetings, nudges and pair chat; direct messages; personal and posted courses; postings; the
+ * organization it owns; sessions and reset tokens. There are no foreign keys in D1 here, so the
+ * order below is what keeps the data consistent.
+ */
+export async function deleteAccount(db: D1Database, accountId: number): Promise<{ email: string; name: string } | null> {
+  const acct = await db
+    .prepare(`SELECT a.id, a.user_id, a.org_id, a.email, u.name FROM accounts a JOIN users u ON u.id = a.user_id WHERE a.id = ?`)
+    .bind(accountId)
+    .first<{ id: number; user_id: number; org_id: number | null; email: string; name: string }>();
+  if (!acct) return null;
+  const userId = acct.user_id;
+  const { results: pairs } = await db.prepare(`SELECT id FROM pairs WHERE mentor_id = ? OR mentee_id = ?`).bind(userId, userId).all<{ id: number }>();
+  const ids = pairs.map((p) => p.id);
+  if (ids.length) {
+    const list = ids.map(() => "?").join(",");
+    await db.batch([
+      db.prepare(`DELETE FROM meetings WHERE pair_id IN (${list})`).bind(...ids),
+      db.prepare(`DELETE FROM checkins WHERE pair_id IN (${list})`).bind(...ids),
+      db.prepare(`DELETE FROM milestones WHERE pair_id IN (${list})`).bind(...ids),
+      db.prepare(`DELETE FROM nudges WHERE pair_id IN (${list})`).bind(...ids),
+      db.prepare(`DELETE FROM messages WHERE pair_id IN (${list})`).bind(...ids),
+    ]);
+  }
+  await db.batch([
+    db.prepare(`DELETE FROM pairs WHERE mentor_id = ? OR mentee_id = ?`).bind(userId, userId),
+    db.prepare(`DELETE FROM personal_courses WHERE mentor_id = ? OR mentee_id = ?`).bind(userId, userId),
+    db.prepare(`DELETE FROM courses WHERE account_id = ?`).bind(accountId),
+    db.prepare(`DELETE FROM opportunities WHERE account_id = ?`).bind(accountId),
+    db.prepare(`DELETE FROM dm_messages WHERE sender_key = ?`).bind(`u:${userId}`),
+    db.prepare(`DELETE FROM dm_threads WHERE a_key = ? OR b_key = ?`).bind(`u:${userId}`, `u:${userId}`),
+    db.prepare(`DELETE FROM password_resets WHERE account_id = ?`).bind(accountId),
+    db.prepare(`DELETE FROM sessions WHERE account_id = ?`).bind(accountId),
+    db.prepare(`DELETE FROM accounts WHERE id = ?`).bind(accountId),
+    db.prepare(`DELETE FROM users WHERE id = ?`).bind(userId),
+    ...(acct.org_id ? [db.prepare(`DELETE FROM orgs WHERE id = ?`).bind(acct.org_id)] : []),
+  ]);
+  return { email: acct.email, name: acct.name };
 }
 
 export async function listMentees(db: D1Database) {
