@@ -375,7 +375,13 @@ export async function choose(req: Request, env: Env, user: Me): Promise<Response
 export async function pairPage(env: Env, pairId: number, url: URL, user: Me): Promise<Response> {
   const pair = await db.getPair(env.DB, pairId);
   if (!pair) return notFound("Pair");
-  const [checkins, milestones] = await Promise.all([db.listCheckins(env.DB, pairId), db.listMilestones(env.DB, pairId)]);
+  const [checkins, milestones, lastNudge] = await Promise.all([
+    db.listCheckins(env.DB, pairId),
+    db.listMilestones(env.DB, pairId),
+    env.DB.prepare(`SELECT message, created_at FROM nudges WHERE pair_id = ? ORDER BY id DESC LIMIT 1`)
+      .bind(pairId)
+      .first<{ message: string; created_at: string }>(),
+  ]);
   const flame = flameFor(checkins.map((c) => c.met_at), pair.created_at);
   const from = url.searchParams.get("from");
   const fromHeat = from !== null ? clamp(parseInt(from, 10) || 0, 0, 100) : null;
@@ -387,6 +393,7 @@ export async function pairPage(env: Env, pairId: number, url: URL, user: Me): Pr
 ${url.searchParams.get("new") ? `<div class="notice">It's a match. ${esc(pair.mentee_name)} and ${esc(pair.mentor_name)} are paired. Book your first 20 minutes.</div>` : ""}
 ${url.searchParams.get("scheduled") ? `<div class="notice">Meeting scheduled. Add it to your calendar below.</div>` : ""}${url.searchParams.get("cancelled") ? `<div class="notice">Meeting cancelled.</div>` : ""}
 ${fromHeat !== null ? `<div class="notice">Meeting logged. Your flame grew from ${fromHeat} to ${flame.heat}.</div>` : ""}
+${lastNudge ? `<div class="notice">🕯️ <b>From the program team:</b> ${esc(lastNudge.message)} <span class="muted">· ${esc(new Date(lastNudge.created_at).toLocaleDateString("en-US", { month: "short", day: "numeric", timeZone: "America/Phoenix" }))}</span></div>` : ""}
 <div class="two" style="align-items:start">
   <div class="card" style="text-align:center">
     <h1 style="font-size:1.5rem"><a class="clink" href="/profile/${pair.mentee_id}">${esc(pair.mentee_name)}</a> + <a class="clink" href="/profile/${pair.mentor_id}">${esc(pair.mentor_name)}</a></h1>
@@ -575,7 +582,7 @@ function rise(btn){btn.disabled=true;btn.textContent='Writing…';
 fetch('/api/rise',{method:'POST'}).then(function(r){return r.json()}).then(function(d){document.getElementById('rise').textContent=d.text;btn.textContent='Rewrite';btn.disabled=false;})
 .catch(function(){btn.disabled=false;btn.textContent='Write Rise Report';toast('Could not write the report. Try again.')});}
 function relight(id,btn){btn.disabled=true;btn.textContent='Sending…';
-fetch('/nudge/'+id,{method:'POST'}).then(function(r){return r.json()}).then(function(d){toast('🕯️ Nudge saved: "'+d.message+'"');btn.textContent='Nudged ✓';})
+fetch('/nudge/'+id,{method:'POST'}).then(function(r){return r.json()}).then(function(d){toast('🕯️ Nudge sent: "'+d.message+'"');btn.textContent='Nudged ✓';})
 .catch(function(){toast('Could not send the nudge. Try again.');btn.disabled=false;btn.textContent='Send relight nudge';});}
 </script>`;
   return html(layout("Campfire", body, "/campfire", "TechWomenAZ admin dashboard: every mentorship as a flame."));
@@ -585,7 +592,7 @@ export async function nudge(env: Env, pairId: number): Promise<Response> {
   const pair = await db.getPair(env.DB, pairId);
   if (!pair) return Response.json({ error: "not found" }, { status: 404 });
   const first = (s: string) => s.split(" ")[0];
-  const message = `Hi ${first(pair.mentee_name)} and ${first(pair.mentor_name)}! Your flame is flickering 🕯️ A 15-minute call this week is enough to relight it. Next up: ${pair.goal}`;
+  const message = `Hi ${first(pair.mentee_name)} and ${first(pair.mentor_name)}! A 15-minute call this week keeps your flame going 🕯️ Next up: ${pair.goal}`;
   await db.addNudge(env.DB, pairId, message);
   return Response.json({ ok: true, message });
 }

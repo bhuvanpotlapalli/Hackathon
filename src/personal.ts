@@ -1,7 +1,8 @@
 // Personalized courses: a mentor picks a mentee and ember (Workers AI) builds a short course
 // tailored to that mentee's path, classes and goal, using courses from the library where they fit.
 import { ask } from "./ai";
-import { libraryFor, sharedCourses, splitCourses, starterMilestones, type User } from "./logic";
+import type { Me } from "./auth";
+import { libraryFor, sharedCourses, starterMilestones, type User } from "./logic";
 import { esc, html, layout } from "./ui";
 
 interface Env {
@@ -108,21 +109,26 @@ async function getUser(db: D1Database, id: number) {
   return db.prepare(`SELECT * FROM users WHERE id = ?`).bind(id).first<User>();
 }
 
-/** Demo personalized courses so the section has something to show. */
-
 export function coursesTabs(active: "library" | "personal"): string {
   return `<div class="ctabs" role="tablist"><a role="tab" class="${active === "library" ? "on" : ""}" href="/courses">Course library</a><a role="tab" class="${active === "personal" ? "on" : ""}" href="/courses/personal">Personalized by ember</a></div>`;
 }
 
 // ---------------------------------------------------------------- /courses/personal
-export async function personalPage(env: Env, url: URL): Promise<Response> {
+export async function personalPage(env: Env, url: URL, user: Me): Promise<Response> {
+  const admin = user.role === "admin";
+  // Members only ever see plans they are part of; admins see the whole program.
+  const listSql = `SELECT pc.*, m.name AS mentor_name, e.name AS mentee_name FROM personal_courses pc JOIN users m ON m.id = pc.mentor_id JOIN users e ON e.id = pc.mentee_id${admin ? "" : " WHERE pc.mentor_id = ? OR pc.mentee_id = ?"} ORDER BY pc.created_at DESC`;
+  const listStmt = admin ? env.DB.prepare(listSql) : env.DB.prepare(listSql).bind(user.userId, user.userId);
+  const mentorSql = `SELECT id, name, career FROM users WHERE role = 'mentor'${admin ? "" : " AND id = ?"} ORDER BY name`;
+  const mentorStmt = admin ? env.DB.prepare(mentorSql) : env.DB.prepare(mentorSql).bind(user.userId);
+  const menteeSql = `SELECT DISTINCT u.id, u.name, u.career FROM users u JOIN pairs p ON p.mentee_id = u.id WHERE p.active = 1${admin ? "" : " AND p.mentor_id = ?"} ORDER BY u.name`;
+  const menteeStmt = admin ? env.DB.prepare(menteeSql) : env.DB.prepare(menteeSql).bind(user.userId);
   const [rows, mentors, mentees] = await Promise.all([
-    env.DB.prepare(
-      `SELECT pc.*, m.name AS mentor_name, e.name AS mentee_name FROM personal_courses pc JOIN users m ON m.id = pc.mentor_id JOIN users e ON e.id = pc.mentee_id ORDER BY pc.created_at DESC`,
-    ).all<PersonalRow>(),
-    env.DB.prepare(`SELECT id, name, career FROM users WHERE role = 'mentor' ORDER BY name`).all<{ id: number; name: string; career: string }>(),
-    env.DB.prepare(`SELECT id, name, career FROM users WHERE role = 'mentee' ORDER BY name`).all<{ id: number; name: string; career: string }>(),
+    listStmt.all<PersonalRow>(),
+    mentorStmt.all<{ id: number; name: string; career: string }>(),
+    menteeStmt.all<{ id: number; name: string; career: string }>(),
   ]);
+  const canBuild = mentors.results.length > 0 && mentees.results.length > 0;
   const selMentor = parseInt(url.searchParams.get("mentor") ?? "", 10) || 0;
   const selMentee = parseInt(url.searchParams.get("mentee") ?? "", 10) || 0;
   const opt = (list: { id: number; name: string; career: string }[], sel: number) =>
@@ -130,7 +136,7 @@ export async function personalPage(env: Env, url: URL): Promise<Response> {
   const body = `
 <div class="banner"><h1>Courses</h1><p>Shared by mentors and employers, or built by ember for one person.</p></div>
 ${coursesTabs("personal")}
-<form method="post" action="/courses/personal" class="card build" id="buildForm">
+${canBuild ? `<form method="post" action="/courses/personal" class="card build" id="buildForm">
   <h2 style="font-size:1.25rem;margin:0 0 .3rem">Build a course for your mentee</h2>
   <p class="muted" style="margin:0 0 .8rem;font-size:.92rem">ember reads their classes and goal, then writes a 4-step course with you as the guide.</p>
   <div class="two">
@@ -140,14 +146,14 @@ ${coursesTabs("personal")}
   <label for="focus">Anything to focus on? (optional)</label>
   <input id="focus" name="focus" maxlength="160" placeholder="e.g. interview nerves, first portfolio piece">
   <button class="btn" type="submit" style="margin-top:1rem" id="buildBtn">Build with ember</button>
-</form>
+</form>` : `<div class="card"><h2 style="font-size:1.25rem;margin:0 0 .3rem">Build a course for your mentee</h2><p class="muted" style="margin:0">${admin ? "Add a mentor and a mentee first — see Accounts." : "Once a mentee chooses you, you can build a course with them here."}</p></div>`}
 <h2 style="font-size:1.2rem;margin:1.6rem 0 .6rem">Personalized courses (${rows.results.length})</h2>
 <div class="grid">${
     rows.results
       .map((r) => {
         const mods = JSON.parse(r.modules || "[]") as Module[];
         return `<a class="card pcourse" href="/courses/personal/${r.id}">
-  <div class="row" style="justify-content:space-between"><span class="chip plum">For ${esc(first(r.mentee_name ?? ""))}</span>${r.demo ? `<span class="chip">demo</span>` : r.ai ? `<span class="chip sage">by ember</span>` : ""}</div>
+  <div class="row" style="justify-content:space-between"><span class="chip plum">For ${esc(first(r.mentee_name ?? ""))}</span>${r.ai ? `<span class="chip sage">by ember</span>` : ""}</div>
   <h3 style="margin:.5rem 0 .2rem;font-size:1.1rem">${esc(r.title)}</h3>
   <p class="muted" style="margin:0 0 .6rem;font-size:.9rem">Guide: ${esc(r.mentor_name ?? "")} · ${mods.length} steps</p>
   <ol class="mini">${mods.map((m) => `<li>${esc(m.title)}</li>`).join("")}</ol>
@@ -155,15 +161,23 @@ ${coursesTabs("personal")}
       })
       .join("") || `<div class="card">No personalized courses yet. Build the first one above.</div>`
   }</div>
-<script>document.getElementById('buildForm').addEventListener('submit',function(){var b=document.getElementById('buildBtn');b.disabled=true;b.textContent='ember is building the course…';b.classList.add('working')});</script>`;
+${canBuild ? `<script>document.getElementById('buildForm').addEventListener('submit',function(){var b=document.getElementById('buildBtn');b.disabled=true;b.textContent='ember is building the course…';b.classList.add('working')});</script>` : ""}`;
   return html(layout("Personalized courses", body, "/courses"));
 }
 
-export async function personalSubmit(req: Request, env: Env): Promise<Response> {
+export async function personalSubmit(req: Request, env: Env, user: Me): Promise<Response> {
   const f = await req.formData();
-  const mentor = await getUser(env.DB, parseInt(String(f.get("mentor") ?? ""), 10) || 0);
+  const admin = user.role === "admin";
+  const mentor = await getUser(env.DB, admin ? parseInt(String(f.get("mentor") ?? ""), 10) || 0 : user.userId);
   const mentee = await getUser(env.DB, parseInt(String(f.get("mentee") ?? ""), 10) || 0);
   if (!mentor || !mentee || mentor.role !== "mentor" || mentee.role !== "mentee") return new Response(null, { status: 303, headers: { location: "/courses/personal" } });
+  // A mentor can only build for their own mentees; admins can build for any pair.
+  if (!admin) {
+    const pair = await env.DB.prepare(`SELECT id FROM pairs WHERE mentor_id = ? AND mentee_id = ? AND active = 1`)
+      .bind(mentor.id, mentee.id)
+      .first<{ id: number }>();
+    if (!pair) return new Response(null, { status: 303, headers: { location: "/courses/personal" } });
+  }
   const focus = String(f.get("focus") ?? "").trim().slice(0, 160);
   const c = await buildCourse(env, mentee, mentor, focus);
   const row = await env.DB.prepare(
@@ -174,13 +188,16 @@ export async function personalSubmit(req: Request, env: Env): Promise<Response> 
   return new Response(null, { status: 303, headers: { location: `/courses/personal/${row!.id}?new=1` } });
 }
 
-export async function personalDetail(env: Env, id: number, url: URL): Promise<Response> {
+export async function personalDetail(env: Env, id: number, url: URL, user: Me): Promise<Response> {
   const r = await env.DB.prepare(
     `SELECT pc.*, m.name AS mentor_name, e.name AS mentee_name FROM personal_courses pc JOIN users m ON m.id = pc.mentor_id JOIN users e ON e.id = pc.mentee_id WHERE pc.id = ?`,
   )
     .bind(id)
     .first<PersonalRow>();
   if (!r) return html(layout("Not found", `<div class="card"><h1>Course not found</h1><p><a href="/courses/personal">Back to personalized courses</a></p></div>`), 404);
+  if (user.role !== "admin" && user.userId !== r.mentor_id && user.userId !== r.mentee_id) {
+    return html(layout("Not allowed", `<div class="card"><h1>This plan isn't yours</h1><p>Personalized courses are private to the mentor and mentee they were built for.</p><p><a href="/courses/personal">Back to personalized courses</a></p></div>`), 403);
+  }
   const mods = JSON.parse(r.modules || "[]") as Module[];
   // Library courses that fit each module, by keyword.
   const lib = await env.DB.prepare(`SELECT id, title, tags FROM courses`).all<{ id: number; title: string; tags: string }>();
@@ -189,7 +206,7 @@ export async function personalDetail(env: Env, id: number, url: URL): Promise<Re
   const body = `
 ${url.searchParams.get("new") ? `<div class="notice">${r.ai ? "ember built this course." : "Course built from the template (AI was busy)."} Share it with ${esc(first(r.mentee_name ?? ""))} at your next meeting.</div>` : ""}
 <p><a href="/courses/personal">← Personalized courses</a></p>
-<div class="banner pc-hero"><span class="chip" style="background:rgba(255,255,255,.15);color:#fff">For ${esc(r.mentee_name ?? "")} · guide ${esc(r.mentor_name ?? "")}${r.demo ? " · demo" : ""}</span>
+<div class="banner pc-hero"><span class="chip" style="background:rgba(255,255,255,.15);color:#fff">For ${esc(r.mentee_name ?? "")} · guide ${esc(r.mentor_name ?? "")}</span>
 <h1 style="margin-top:.6rem">${esc(r.title)}</h1><p>${esc(r.summary)}</p>
 <div class="pc-prog"><b id="pcBar"></b></div><span id="pcTxt" style="font-size:.9rem;opacity:.85"></span></div>
 <ol class="modules">${mods

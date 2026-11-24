@@ -11,32 +11,6 @@ export interface Env {
   ADMIN_EMAIL?: string;
 }
 
-export const AUTH_SCHEMA = [
-  `CREATE TABLE IF NOT EXISTS accounts (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    user_id INTEGER NOT NULL UNIQUE,
-    email TEXT NOT NULL UNIQUE,
-    pass_hash TEXT NOT NULL,
-    role TEXT NOT NULL DEFAULT 'member',
-    failed INTEGER NOT NULL DEFAULT 0,
-    locked_until TEXT NOT NULL DEFAULT '',
-    created_at TEXT NOT NULL
-  )`,
-  `CREATE TABLE IF NOT EXISTS sessions (
-    id TEXT PRIMARY KEY,
-    account_id INTEGER NOT NULL,
-    created_at TEXT NOT NULL,
-    expires_at TEXT NOT NULL
-  )`,
-  `CREATE INDEX IF NOT EXISTS idx_sessions_account ON sessions(account_id)`,
-  `CREATE TABLE IF NOT EXISTS password_resets (
-    token TEXT PRIMARY KEY,
-    account_id INTEGER NOT NULL,
-    expires_at TEXT NOT NULL,
-    used INTEGER NOT NULL DEFAULT 0
-  )`,
-];
-
 const COOKIE = "ember_session";
 const SESSION_DAYS = 30;
 const ITERATIONS = 100_000;
@@ -376,7 +350,7 @@ ${error ? `<div class="notice" role="alert" style="background:#fdecea;border-col
 export async function resetForm(req: Request, env: Env, url: URL): Promise<Response> {
   const token = (url.searchParams.get("token") ?? "").slice(0, 100);
   if (!token) return resetPage("", "That reset link is missing its token. Ask a program admin for a new one.");
-  const row = await env.DB.prepare(`SELECT used, expires_at FROM password_resets WHERE token = ?`).bind(token).first<{ used: number; expires_at: string }>();
+  const row = await env.DB.prepare(`SELECT used, expires_at FROM password_resets WHERE token = ?`).bind(await sha256(token)).first<{ used: number; expires_at: string }>();
   if (!row || row.used || row.expires_at <= new Date().toISOString()) return resetPage("", "That reset link has expired or was already used. Ask a program admin for a new one.");
   return resetPage(token);
 }
@@ -386,15 +360,16 @@ export async function resetSubmit(req: Request, env: Env): Promise<Response> {
   const token = field(f, "token", 100);
   const password = String(f.get("password") ?? "");
   const password2 = String(f.get("password2") ?? "");
+  const tokenHash = await sha256(token);
   const row = await env.DB.prepare(`SELECT account_id, used, expires_at FROM password_resets WHERE token = ?`)
-    .bind(token)
+    .bind(tokenHash)
     .first<{ account_id: number; used: number; expires_at: string }>();
   if (!row || row.used || row.expires_at <= new Date().toISOString()) return resetPage("", "That reset link has expired or was already used. Ask a program admin for a new one.");
   if (password.length < MIN_PASSWORD) return resetPage(token, `Use at least ${MIN_PASSWORD} characters.`);
   if (password !== password2) return resetPage(token, "The two passwords don't match.");
   await env.DB.batch([
     env.DB.prepare(`UPDATE accounts SET pass_hash = ?, failed = 0, locked_until = '' WHERE id = ?`).bind(await hashPassword(password), row.account_id),
-    env.DB.prepare(`UPDATE password_resets SET used = 1 WHERE token = ?`).bind(token),
+    env.DB.prepare(`UPDATE password_resets SET used = 1 WHERE token = ?`).bind(tokenHash),
     env.DB.prepare(`DELETE FROM sessions WHERE account_id = ?`).bind(row.account_id),
   ]);
   return new Response(null, { status: 303, headers: { location: "/login?reset=1" } });
@@ -416,6 +391,8 @@ export async function adminAccounts(req: Request, env: Env, url: URL): Promise<R
 <p>Invite people by having them sign up at /signup. Issue a reset link if someone is locked out.</p></div>
 ${link ? `<div class="notice">One-time reset link (share it privately, it expires in 24 hours):<br><code style="word-break:break-all">${esc(origin)}/reset?token=${esc(link)}</code></div>` : ""}
 ${url.searchParams.get("role") ? `<div class="notice">Role updated.</div>` : ""}
+${url.searchParams.get("self") ? `<div class="notice" role="alert">You cannot remove your own admin access. Ask another admin to do it.</div>` : ""}
+${url.searchParams.get("last") ? `<div class="notice" role="alert">That is the last admin account. Make someone else an admin first.</div>` : ""}
 <div class="card"><h2 style="font-size:1.2rem;margin-top:0">${rows.results.length} account${rows.results.length === 1 ? "" : "s"}</h2>
 ${rows.results
   .map(
@@ -438,17 +415,29 @@ export async function adminIssueReset(req: Request, env: Env, accountId: number)
   const account = await env.DB.prepare(`SELECT id FROM accounts WHERE id = ?`).bind(accountId).first<{ id: number }>();
   if (!account) return new Response(null, { status: 303, headers: { location: "/admin/accounts" } });
   const token = randomToken(24);
-  await env.DB.prepare(`INSERT INTO password_resets (token, account_id, expires_at, used) VALUES (?, ?, ?, 0)`)
-    .bind(token, accountId, new Date(Date.now() + 864e5).toISOString())
-    .run();
+  const now = Date.now();
+  // Only the hash is stored, so a leaked database cannot be used to reset accounts.
+  await env.DB.batch([
+    env.DB.prepare(`DELETE FROM password_resets WHERE expires_at <= ? OR used = 1`).bind(new Date(now).toISOString()),
+    env.DB.prepare(`INSERT INTO password_resets (token, account_id, expires_at, used) VALUES (?, ?, ?, 0)`)
+      .bind(await sha256(token), accountId, new Date(now + 864e5).toISOString()),
+  ]);
   return new Response(null, { status: 303, headers: { location: `/admin/accounts?link=${token}` } });
 }
 
 export async function adminSetRole(req: Request, env: Env, accountId: number): Promise<Response> {
   const f = await req.formData();
   const role = field(f, "role", 10) === "admin" ? "admin" : "member";
+  const back = (q: string) => new Response(null, { status: 303, headers: { location: `/admin/accounts?${q}` } });
+  const current = await me(req, env);
+  if (current && current.accountId === accountId && role !== "admin") return back("self=1");
+  if (role !== "admin") {
+    // Never leave the program without an admin.
+    const admins = await env.DB.prepare(`SELECT COUNT(*) AS n FROM accounts WHERE role = 'admin'`).first<{ n: number }>();
+    if ((admins?.n ?? 0) <= 1) return back("last=1");
+  }
   await env.DB.prepare(`UPDATE accounts SET role = ? WHERE id = ?`).bind(role, accountId).run();
-  return new Response(null, { status: 303, headers: { location: "/admin/accounts?role=1" } });
+  return back("role=1");
 }
 
 /** Small helper for page code: a 403 with a way back. */

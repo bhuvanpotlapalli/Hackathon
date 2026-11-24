@@ -147,17 +147,22 @@ ${coursesTabs("library")}
   return html(layout("Courses", body, "/courses"));
 }
 
-export async function courseForm(env: Env, url: URL): Promise<Response> {
+export async function courseForm(env: Env, url: URL, user?: { name: string; role: string }): Promise<Response> {
   const opps = await env.DB.prepare(`SELECT id, title, org FROM opportunities ORDER BY created_at DESC`).all<{ id: number; title: string; org: string }>();
   const oppId = parseInt(url.searchParams.get("opp") ?? "", 10) || 0;
   const orgName = (url.searchParams.get("org") ?? "").slice(0, 80);
+  // A signed-in mentor publishes under their own name, so the author fields only appear for admins.
+  const asMentor = !!user && user.role !== "admin";
   const body = `
 <h1>Share a course</h1>
-<p class="muted">Mentors: share a class you teach or loved. Employers: add prep courses for your posting.</p>
+<p class="muted">Mentors: share a class you teach or loved. Admins: add prep courses for an employer's posting.</p>
+${url.searchParams.get("missing") ? `<div class="notice" role="alert" style="background:#fdecea;border-color:#f5c2bd;color:#7a1f16">Add a course title to continue.</div>` : ""}
 <form method="post" action="/courses" class="card">
   <div class="two">
-    <div><label for="author_kind">I'm a</label><select id="author_kind" name="author_kind">${options(AUTHOR_KINDS, oppId || orgName ? "Employer" : "Mentor")}</select></div>
-    <div><label for="author">Your name or organization</label><input id="author" name="author" required maxlength="80" value="${esc(orgName)}"></div>
+    ${asMentor
+      ? `<div><label>Publishing as</label><input value="${esc(user!.name)}" disabled></div><input type="hidden" name="author" value="${esc(user!.name)}">`
+      : `<div><label for="author_kind">I'm a</label><select id="author_kind" name="author_kind">${options(AUTHOR_KINDS, oppId || orgName ? "Employer" : "Mentor")}</select></div>
+    <div><label for="author">Your name or organization</label><input id="author" name="author" required maxlength="80" value="${esc(orgName)}"></div>`}
     <div><label for="title">Course title</label><input id="title" name="title" required maxlength="120" placeholder="e.g. SQL for analysts"></div>
     <div><label for="provider">Where it's taught</label><input id="provider" name="provider" maxlength="80" value="${esc(orgName)}" placeholder="e.g. Coursera, ASU, my own session"></div>
     <div><label for="career">Path</label><select id="career" name="career">${options(FORM_PATHS)}</select></div>
@@ -185,7 +190,11 @@ export async function courseSubmit(req: Request, env: Env, user?: { userId: numb
   const title = s("title", 120);
   // Mentors publish under their own name; admins can publish on behalf of an employer.
   const author = user && user.role !== "admin" ? user.name.slice(0, 80) : s("author", 80);
-  if (!title || !author) return courseForm(env, new URL(req.url));
+  if (!title || !author) {
+    const back = new URL(req.url);
+    back.searchParams.set("missing", "1");
+    return courseForm(env, back, user);
+  }
   const oppId = parseInt(s("opp_id", 10), 10);
   const opp = oppId ? await getOpp(env.DB, oppId) : null;
   const link = s("link", 300);
@@ -193,7 +202,7 @@ export async function courseSubmit(req: Request, env: Env, user?: { userId: numb
     `INSERT INTO courses (title, provider, author, author_kind, opp_id, career, level, cost, format, length, tags, description, link, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
   )
     .bind(
-      title, s("provider", 80), author, pick("author_kind", AUTHOR_KINDS), opp ? opp.id : null, pick("career", FORM_PATHS), pick("level", LEVELS),
+      title, s("provider", 80), author, user && user.role !== "admin" ? "Mentor" : pick("author_kind", AUTHOR_KINDS), opp ? opp.id : null, pick("career", FORM_PATHS), pick("level", LEVELS),
       pick("cost", COSTS), pick("format", COURSE_FORMATS), s("length", 40),
       splitCourses(s("tags", 200)).slice(0, 8).map((t) => t.toLowerCase()).join(", "), s("description", 400),
       /^https?:\/\//.test(link) ? link : "", new Date().toISOString(),

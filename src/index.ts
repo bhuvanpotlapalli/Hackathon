@@ -99,9 +99,9 @@ async function route(request: Request, env: Env): Promise<Response> {
       if (path === "/org") return social.orgByName(env, url);
       if ((r = m(/^\/orgs\/(\d+)$/))) return social.orgPage(env, +r[1], url);
       if (path === "/courses") return courses.coursesPage(env, url);
-      if (path === "/courses/new") return user.role === "mentor" || admin ? courses.courseForm(env, url) : auth.forbidden();
-      if (path === "/courses/personal") return user.role === "mentor" || admin ? personal.personalPage(env, url) : auth.forbidden();
-      if ((r = m(/^\/courses\/personal\/(\d+)$/))) return personal.personalDetail(env, +r[1], url);
+      if (path === "/courses/new") return user.role === "mentor" || admin ? courses.courseForm(env, url, user) : auth.forbidden();
+      if (path === "/courses/personal") return personal.personalPage(env, url, user);
+      if ((r = m(/^\/courses\/personal\/(\d+)$/))) return personal.personalDetail(env, +r[1], url, user);
       if ((r = m(/^\/courses\/(\d+)$/))) return courses.courseDetail(env, +r[1]);
       if ((r = m(/^\/api\/opp-courses\/(\d+)$/))) return courses.apiOppCourses(env, +r[1]);
       if (path === "/opportunities") return pages.opportunities(env, url);
@@ -149,16 +149,18 @@ async function route(request: Request, env: Env): Promise<Response> {
       if (path === "/orgs") return admin ? social.orgSubmit(request, env) : auth.forbidden();
       if ((r = m(/^\/profile\/(\d+)$/))) return admin || isSelf(+r[1]) ? social.profileSubmit(request, env, +r[1]) : auth.forbidden();
       if (path === "/courses") return user.role === "mentor" || admin ? courses.courseSubmit(request, env, user) : auth.forbidden();
-      if (path === "/courses/personal") return user.role === "mentor" || admin ? personal.personalSubmit(request, env) : auth.forbidden();
+      if (path === "/courses/personal") return user.role === "mentor" || admin ? personal.personalSubmit(request, env, user) : auth.forbidden();
       if (path === "/calendar") return inbox.calendarSchedule(request, env, user);
       if ((r = m(/^\/api\/dm\/(\d+)$/))) return inbox.apiDm(request, env, user, +r[1]);
     }
 
     return html(layout("Not found", `<div class="card"><h1>Page not found</h1><p><a href="/home">Back to your dashboard</a></p></div>`), 404);
   } catch (err) {
-    console.error(err);
+    // Never show internals to members; log a reference they can quote to the program team.
+    const ref = crypto.randomUUID().slice(0, 8);
+    console.error(`[${ref}]`, err);
     return html(
-      layout("Something went wrong", `<div class="card"><h1>Something went wrong</h1><p class="muted">${esc(err instanceof Error ? err.message : String(err))}</p><p><a href="/home">Back to your dashboard</a></p></div>`),
+      layout("Something went wrong", `<div class="card"><h1>Something went wrong</h1><p class="muted">The page could not be loaded. Try again, or tell the program team the reference <code>${ref}</code>.</p><p><a href="/home">Back to your dashboard</a></p></div>`),
       500,
     );
   }

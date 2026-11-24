@@ -18,6 +18,7 @@ Live: https://fortfein.firebytehack.workers.dev
 - **Opportunities.** Program staff post internships, jobs and mentorship programs with the coursework they want; each student sees their fit and matched students are listed for staff.
 - **Courses.** Mentors add courses they teach or recommend; students filter by path, level, cost, format and tags, track lesson progress and save courses. Workers AI picks the courses that cover each posting, and a mentor can have ember write a 4-part course for one mentee.
 - **Profiles.** Bio, pronouns, experience, fun facts, interests, availability, format and area, with a Member directory for starting conversations.
+- **Privacy.** Personalized courses are visible only to the mentor and mentee they were built for (admins can see all), and conversations, pairs, meetings and calendars are visible only to their members.
 - **Admin.** `/campfire` for every pair's flame, retention, weekly meeting chart and a before-and-after confidence Rise Report; `/admin/accounts` for members, admin roles and password resets.
 
 ## Security and privacy
@@ -51,8 +52,9 @@ Local tests: `npx vitest run` (home page and `/health`). Type-check: `npx tsc --
 
 ## Operations
 
-- **Reset a password:** `/admin/accounts` → *Reset link* → send the one-time URL (valid 24 hours) to the member.
+- **Reset a password:** `/admin/accounts` → *Reset link* → send the one-time URL (valid 24 hours) to the member. Only a hash of that token is stored, so a database copy cannot be used to reset accounts.
 - **Make someone an admin:** same page → *Make admin*.
+- **Nudges:** the relight button on `/campfire` posts a short note from the program team that shows at the top of that pair's page for both members (there is no email sender, so in-app is the delivery).
 - **Backups:** `npx wrangler d1 export ember-db --remote --output backup.sql` on a schedule.
 - **Workers plan:** password hashing uses real CPU; the Workers **Paid** plan ($5/mo) is the safe choice. The free plan's 10 ms CPU budget can time out on sign-in.
 - **Email:** there is no email sender configured. Password resets are admin-issued links, and invitations are shared by link (`/signup`). Add a transactional email provider if you want automatic reset emails.
