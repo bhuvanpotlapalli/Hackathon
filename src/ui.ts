@@ -267,7 +267,6 @@ html[data-theme=dark] .s-launch .big{color:#cdb5f0}
 
 /* Final call */
 .btn.xl{padding:1rem 1.7rem;font-size:1.15rem;border-radius:14px}
-.demo-names{margin-top:1.5rem;font-size:.92rem}
 @media (prefers-reduced-motion:reduce){.big,.scene .line,.pcard,.links span,.pct,.ocard{opacity:1!important;transform:none!important;filter:none!important}}
 
 /* ---------- Home scroll story (full-bleed, cinematic) ---------- */
@@ -323,7 +322,6 @@ html[data-theme=dark] .sx-light{background:radial-gradient(90% 70% at 50% 0%,#2a
 .sx.on .tagcloud span,.sx.on .tagcloud a{opacity:1;transform:none;animation:bob 4s ease-in-out calc(var(--i)*-.4s) infinite}
 @keyframes bob{50%{transform:translateY(-6px)}}
 .sx-dark .ocard,.sx-go .ocard{background:#22162f;color:#f6eefa;border-color:rgba(255,255,255,.12)}
-.sx-go .demo-names{opacity:.75}.sx-go .demo-names a{color:#ffb98f}
 .thread{position:absolute;left:28px;top:100svh;bottom:0;width:2px;background:rgba(128,128,128,.18);z-index:4;pointer-events:none}
 .thread i{position:sticky;top:0;display:block;height:100svh;width:2px;transform-origin:top;background:linear-gradient(var(--ember),var(--gold));box-shadow:0 0 12px var(--ember)}
 nav.storynav{background:transparent!important;padding:0!important;box-shadow:none!important;border:0!important;flex-wrap:nowrap!important;width:auto!important;position:fixed;right:18px;top:50%;transform:translateY(-50%);z-index:20;display:flex;flex-direction:column;gap:.35rem}
