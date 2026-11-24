@@ -1,4 +1,5 @@
 import * as social from "./social";
+import * as inbox from "./inbox";
 import * as personal from "./personal";
 import * as courses from "./courses";
 // Ember: mentorships that don't fizzle out. Built for TechWomenAZ at FireBytes 2026.
@@ -44,7 +45,14 @@ export default {
         if ((r = m(/^\/matches\/(\d+)$/))) return pages.matches(env, +r[1], url);
         if ((r = m(/^\/pair\/(\d+)$/))) return pages.pairPage(env, +r[1], url);
         if (path === "/campfire") return pages.campfire(env, url);
-        if ((r = m(/^\/profile\/(\d+)$/))) return social.profilePage(env, +r[1], url);
+        if (path === "/switch") return inbox.switchPage(request, env, url);
+        if (path === "/enter") return inbox.enter(request, env, url);
+        if (path === "/api/me") return inbox.apiMe(request, env);
+        if (path === "/messages") return inbox.inboxPage(request, env, url);
+        if ((r = m(/^\/messages\/([uo]:\d+)$/))) return inbox.threadPage(request, env, r[1]);
+        if ((r = m(/^\/api\/dm\/(\d+)$/))) return inbox.apiDm(request, env, +r[1]);
+        if (path === "/calendar") return inbox.calendarPage(request, env, url);
+        if ((r = m(/^\/profile\/(\d+)$/))) return social.profilePage(env, +r[1], url, request);
         if (path === "/orgs") return social.orgsPage(env, url);
         if (path === "/orgs/new") return social.orgForm(url);
         if (path === "/org") return social.orgByName(env, url);
@@ -75,6 +83,9 @@ export default {
         if (path === "/choose") return pages.choose(request, env);
         if (path === "/api/chat/react") return chat.chatReact(request, env);
         if (path === "/api/chat/finish") return chat.chatFinish(request, env);
+        if (path === "/switch") return inbox.switchSubmit(request, env);
+        if (path === "/calendar") return inbox.calendarSchedule(request, env);
+        if ((r = m(/^\/api\/dm\/(\d+)$/))) return inbox.apiDm(request, env, +r[1]);
         if ((r = m(/^\/pair\/(\d+)\/log$/))) return pages.logMeeting(request, env, +r[1]);
         if ((r = m(/^\/pair\/(\d+)\/milestone\/(\d+)$/))) return pages.milestone(env, +r[1], +r[2]);
         if ((r = m(/^\/nudge\/(\d+)$/))) return pages.nudge(env, +r[1]);

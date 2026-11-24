@@ -21,7 +21,8 @@ TechWomenAZ helps college students and adults (18+, not K-12) build careers in t
 8. **Profiles, chat and meetings.** Everyone has a profile they can edit (bio, pronouns, work experience, fun facts, interests). Every pair has a chat and can schedule virtual (video link) or in-person meetings with an Add to calendar file. Fun facts and work background add up to 10 "chemistry" points to a match.
 9. **Organization profiles** (`/orgs`). Companies, nonprofits and schools get a profile listing their opportunities and courses; every posting links to its organization.
 10. **Admin** (`/campfire`): retention rate, churned pairs, new pairs, % of pairs meeting each week, and an 8-week chart. Reset demo shows at `/campfire?admin=1`.
-11. **Design.** The home page is a full-screen scroll story (Start → Why → Match → Meet → Learn → Launch → Join) with drifting embers, a glowing thread that connects every section as you scroll, and a fire that grows as you scroll through Meet. Light/dark toggle, page-to-page transitions tied to each button, clickable flames that throw sparks, and a phone-friendly layout.
+11. **Messages** (`/messages`). Click any person or organization and message them directly: mentors from a course page, mentees from an opportunity, employers from a posting, or anyone from the directory on the messages page. Every profile has a Message button, and a conversation updates while you keep the tab open. **Calendar** (`/calendar`) shows every meeting on a month grid (virtual, in person, and the logged meetings that fed a flame), lists what's up next, and lets either person in a pair book a meeting, which then adds to Google, Apple or Outlook with the .ics download. The demo has no logins, so `/switch` lets you act as any seeded person or organization.
+12. **Design.** The home page is a full-screen scroll story (Start → Why → Match → Meet → Learn → Launch → Join) with drifting embers, a glowing thread that connects every section as you scroll, and a fire that grows as you scroll through Meet. Light/dark toggle, page-to-page transitions tied to each button, clickable flames that throw sparks, and a phone-friendly layout.
 
 | Matches by shared coursework | Chat signup with ember | Campfire dashboard |
 |---|---|---|
@@ -52,6 +53,7 @@ TechWomenAZ helps college students and adults (18+, not K-12) build careers in t
 | `src/courses.ts` | Course library, filters, ember's course picks for opportunities |
 | `src/personal.ts` | Personalized courses built by ember for one mentee |
 | `src/social.ts` | Profiles, pair chat, meeting scheduling, organization profiles |
+| `src/inbox.ts` | Direct messages between any two people, the calendar, and the demo "act as" switch |
 | `src/pages.ts` | Pages, forms, JSON endpoints |
 | `src/db.ts` | Schema, demo seed data, queries (all parameterized) |
 | `src/logic.ts` | Flame, match and opportunity-fit formulas, curated course library |
@@ -73,7 +75,8 @@ Tables and demo data are created automatically on the first request. The **Reset
 
 ## Status
 - ✅ **Finished:** ember chat signup with curated courses, classic signup form, coursework matching, pairs, milestones, meeting logs, flames, Campfire dashboard, relight nudges (saved), Rise Report, opportunities board with coursework fit, course library with filters, AI course picks per opportunity, every AI feature with fallbacks, light/dark mode, mobile layout.
-- 🧪 **Mocked:** nudges are saved and shown, not emailed. There are no logins, so anyone with a link can open any page. People, pairs and postings are **fictional demo data** (postings and courses are marked "(demo)" or credited to demo people).
+- ✅ **Messages and calendar:** direct messaging between mentors, mentees and employers, a month calendar with scheduling, and `/switch` to act as any seeded person or organization.
+- 🧪 **Mocked:** nudges are saved and shown, not emailed. There are no logins, so anyone with a link can open any page and `/switch` picks who you are; messages are stored, not sent by email. People, pairs and postings are **fictional demo data** (postings and courses are marked "(demo)" or credited to demo people).
 - 🔜 **Next:** logins for mentors, mentees and admins; real email/SMS nudges; Speed Spark matching at live events; "Pass the Torch" (mentees who reach their goal become mentors); a mentor course library with public/members-only sharing.
 
 ## Assumptions

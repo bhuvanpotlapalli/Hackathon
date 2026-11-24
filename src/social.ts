@@ -1,6 +1,7 @@
 // Profiles (view + edit) and mentor–mentee chat on the pair page.
 import { ALL_PATHS, AREAS, AVAILABILITY, FORMATS, FUN_INTERESTS, clamp, normCareer, splitCourses, type User } from "./logic";
 import { esc, html, layout, options } from "./ui";
+import { currentIdent } from "./inbox";
 
 interface Env {
   DB: D1Database;
@@ -34,9 +35,12 @@ export function messageSeed(db: D1Database, pairs: { id: number; mentor: number;
 }
 
 // ---------------------------------------------------------------- Profile
-export async function profilePage(env: Env, id: number, url: URL): Promise<Response> {
+export async function profilePage(env: Env, id: number, url: URL, req?: Request): Promise<Response> {
   const u = await env.DB.prepare(`SELECT * FROM users WHERE id = ?`).bind(id).first<Profile>();
   if (!u) return html(layout("Not found", `<div class="card"><h1>Profile not found</h1><p><a href="/">Back home</a></p></div>`), 404);
+  const me = req ? await currentIdent(req, env) : null;
+  const isMe = me?.kind === "user" && me.id === u.id;
+  const first = esc(u.name.split(" ")[0]);
   const pairs = await env.DB.prepare(
     `SELECT p.id, m.name AS mentor_name, e.name AS mentee_name FROM pairs p JOIN users m ON m.id = p.mentor_id JOIN users e ON e.id = p.mentee_id WHERE p.mentor_id = ? OR p.mentee_id = ?`,
   )
@@ -56,8 +60,10 @@ ${url.searchParams.get("saved") ? `<div class="notice">Profile saved.</div>` : "
   ${u.fun_facts ? `<p style="margin:.3rem 0 0;position:relative;z-index:1"><b>Fun facts:</b> ${esc(u.fun_facts)}</p>` : ""}
   <div class="row" style="margin-top:1rem;position:relative;z-index:1">
     ${mentor ? `<a class="btn" href="/courses/personal?mentor=${u.id}">Build a course for a mentee</a>` : `<a class="btn" href="/matches/${u.id}">See my matches</a>`}
-    ${pairs.results.map((p) => `<a class="btn ghost onDark" href="/pair/${p.id}#chat">Chat with ${esc((mentor ? p.mentee_name : p.mentor_name).split(" ")[0])}</a>`).join("")}
+    ${isMe ? `<span class="chip sage">This is you</span><a class="btn ghost onDark" href="/switch">Switch person</a>` : `<a class="btn ghost onDark" href="/messages/u:${u.id}">Message ${first}</a>`}
+    <a class="btn ghost onDark" href="/calendar">My calendar</a>
   </div>
+  ${pairs.results.length ? `<div class="row" style="margin-top:.6rem;position:relative;z-index:1">${pairs.results.map((p) => `<a class="btn small ghost onDark" href="/pair/${p.id}#chat">Chat with ${esc((mentor ? p.mentee_name : p.mentor_name).split(" ")[0])}</a><a class="btn small ghost onDark" href="/calendar?pair=${p.id}#schedule">Book a meeting</a>`).join("")}</div>` : ""}
 </div>
 <form method="post" action="/profile/${u.id}" class="card">
   <h2 style="font-size:1.25rem;margin-top:0">Edit profile</h2>
@@ -280,6 +286,17 @@ export async function meetingsBlock(env: Env, pairId: number): Promise<string> {
 <script>function mtgKind(f){var v=f.querySelector('input[name=kind]:checked').value==='Virtual';f.querySelector('.m-link').style.display=v?'':'none';f.querySelector('.m-place').style.display=v?'none':'';f.place.required=!v}</script>`;
 }
 
+/** Saves one meeting. Used by the pair page and by the calendar. */
+export async function addMeeting(
+  env: Env,
+  pairId: number,
+  m: { kind: string; when: string; minutes: number; link: string; place: string; topic: string },
+): Promise<void> {
+  await env.DB.prepare(`INSERT INTO meetings (pair_id, kind, starts_at, minutes, place, link, topic, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`)
+    .bind(pairId, m.kind === "In-person" ? "In-person" : "Virtual", m.when, m.minutes, m.kind === "In-person" ? m.place : "", m.kind === "Virtual" && /^https?:\/\//.test(m.link) ? m.link : "", m.topic, new Date().toISOString())
+    .run();
+}
+
 export async function meetingSubmit(req: Request, env: Env, pairId: number): Promise<Response> {
   const pair = await env.DB.prepare(`SELECT id FROM pairs WHERE id = ?`).bind(pairId).first();
   if (!pair) return new Response("Pair not found", { status: 404 });
@@ -287,14 +304,17 @@ export async function meetingSubmit(req: Request, env: Env, pairId: number): Pro
   const s = (k: string, max: number) => String(f.get(k) ?? "").trim().slice(0, max);
   const kind = s("kind", 20) === "In-person" ? "In-person" : "Virtual";
   const when = s("starts_at", 16);
-  const back = new Response(null, { status: 303, headers: { location: `/pair/${pairId}?scheduled=1#meetings` } });
-  if (!/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/.test(when)) return new Response(null, { status: 303, headers: { location: `/pair/${pairId}#meetings` } });
+  // Booked from /calendar: go back to the month view instead of the pair page.
+  const toCalendar = s("back", 20) === "calendar";
+  if (!/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/.test(when))
+    return new Response(null, { status: 303, headers: { location: toCalendar ? "/calendar?bad=1#schedule" : `/pair/${pairId}#meetings` } });
   const link = s("link", 300);
   const minutes = [20, 30, 45, 60].includes(parseInt(s("minutes", 3), 10)) ? parseInt(s("minutes", 3), 10) : 30;
-  await env.DB.prepare(`INSERT INTO meetings (pair_id, kind, starts_at, minutes, place, link, topic, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`)
-    .bind(pairId, kind, when, minutes, kind === "In-person" ? s("place", 160) : "", kind === "Virtual" && /^https?:\/\//.test(link) ? link : "", s("topic", 120), new Date().toISOString())
-    .run();
-  return back;
+  await addMeeting(env, pairId, { kind, when, minutes, link, place: s("place", 160), topic: s("topic", 120) });
+  return new Response(null, {
+    status: 303,
+    headers: { location: toCalendar ? `/calendar?month=${when.slice(0, 7)}&scheduled=1#schedule` : `/pair/${pairId}?scheduled=1#meetings` },
+  });
 }
 
 export async function meetingCancel(env: Env, pairId: number, id: number): Promise<Response> {
@@ -402,7 +422,7 @@ ${url.searchParams.get("created") ? `<div class="notice">Profile created. Post a
 <div class="banner prof"><div class="row" style="gap:1rem;position:relative;z-index:1"><div class="pavatar">${esc(o.name.replace(/\(demo\)/, "").trim().slice(0, 1))}</div>
 <div><h1 style="margin:0">${esc(o.name)}</h1><p style="margin:.2rem 0 0">${esc(o.kind)}${o.area ? ` · ${esc(o.area)}` : ""}</p></div></div>
 <p style="margin-top:1rem;position:relative;z-index:1">${esc(o.about)}</p>
-<div class="row" style="position:relative;z-index:1;margin-top:.8rem"><a class="btn" href="/opportunities/new?org=${encodeURIComponent(o.name)}">Post an opportunity</a><a class="btn ghost onDark" href="/courses/new?org=${encodeURIComponent(o.name)}">Add a course</a>${/^https?:\/\//.test(o.website) ? `<a class="btn ghost onDark" href="${esc(o.website)}" target="_blank" rel="noopener">Website</a>` : ""}</div></div>
+<div class="row" style="position:relative;z-index:1;margin-top:.8rem"><a class="btn" href="/messages/o:${o.id}">Message us</a><a class="btn ghost onDark" href="/opportunities/new?org=${encodeURIComponent(o.name)}">Post an opportunity</a><a class="btn ghost onDark" href="/courses/new?org=${encodeURIComponent(o.name)}">Add a course</a>${/^https?:\/\//.test(o.website) ? `<a class="btn ghost onDark" href="${esc(o.website)}" target="_blank" rel="noopener">Website</a>` : ""}</div></div>
 <div class="two" style="align-items:start">
   <div class="card"><h2 style="font-size:1.2rem;margin-top:0">Opportunities (${opps.length})</h2>${
     opps.length ? opps.map((p) => `<p style="margin:.4rem 0"><a href="/opportunities/${p.id}"><b>${esc(p.title)}</b></a><br><span class="muted">${esc(p.kind)} · ${esc(p.career)}</span></p>`).join("") : `<p class="muted">No openings yet.</p>`

@@ -4,6 +4,7 @@ import * as ai from "./ai";
 import * as db from "./db";
 import { oppCoursesBlock } from "./courses";
 import { chatBlock, meetingsBlock } from "./social";
+import { setAs } from "./inbox";
 import {
   AREAS,
   AVAILABILITY,
@@ -279,7 +280,8 @@ export async function joinSubmit(req: Request, env: Env): Promise<Response> {
     confidence: int(f, "confidence", 1, 10, 5),
     capacity: role === "mentor" ? int(f, "capacity", 1, 20, 2) : 0,
   });
-  return redirect(role === "mentor" ? `/mentor/${id}` : `/matches/${id}`);
+  // Sign the new profile in so messages, the calendar and profile edits act as them.
+  return setAs(`u:${id}`, role === "mentor" ? `/mentor/${id}` : `/matches/${id}`);
 }
 
 export async function mentorWelcome(env: Env, id: number): Promise<Response> {
@@ -355,6 +357,7 @@ ${
     <p class="muted" style="margin:.2rem 0">${esc(r.mentor.headline)}</p>
     <p class="muted" style="margin:.2rem 0;font-size:.88rem">${esc(r.mentor.school)}</p>
     <div>${chips(r.reasons)}</div>
+    <div class="row" style="margin-top:.4rem"><a class="btn small ghost" href="/profile/${r.mentor.id}">Profile</a><a class="btn small ghost" href="/messages/u:${r.mentor.id}">Message</a></div>
     <p class="why muted" data-mentor="${r.mentor.id}" style="font-style:italic;margin:.5rem 0"></p>
     <form method="post" action="/choose"><input type="hidden" name="mentee" value="${mentee.id}"><input type="hidden" name="mentor" value="${r.mentor.id}">
     <button class="btn" type="submit" style="width:100%;margin-top:.5rem">Choose ${esc(r.mentor.name.split(" ")[0])}</button></form>
@@ -700,6 +703,7 @@ export async function oppDetail(env: Env, id: number, url: URL): Promise<Respons
   const o = opps.find((x) => x.id === id);
   if (!o) return notFound("Opportunity");
   const mentees = await db.listMentees(env.DB);
+  const org = await env.DB.prepare(`SELECT id FROM orgs WHERE name = ?`).bind(o.org).first<{ id: number }>();
   const ranked = mentees
     .map((m: User) => ({ m, r: oppScore(m, o) }))
     .filter((x) => x.r.score >= 40)
@@ -716,13 +720,17 @@ ${url.searchParams.get("posted") ? `<div class="notice">Posted. These students h
     ranked.length
       ? ranked
           .map(
-            (x) => `<div style="border-bottom:1px dashed var(--line);padding:.5rem 0"><div class="row" style="justify-content:space-between"><b>${esc(x.m.name)}</b><span class="score" style="font-size:1.1rem">${x.r.score}%</span></div>
-      <span class="muted">${esc(x.m.headline)}</span><div>${chips(x.r.courses, "sage")}</div></div>`,
+            (x) => `<div style="border-bottom:1px dashed var(--line);padding:.5rem 0"><div class="row" style="justify-content:space-between"><b><a href="/profile/${x.m.id}">${esc(x.m.name)}</a></b><span class="score" style="font-size:1.1rem">${x.r.score}%</span></div>
+      <span class="muted">${esc(x.m.headline)}</span><div>${chips(x.r.courses, "sage")}</div>
+      <div class="row" style="margin-top:.35rem"><a class="btn small ghost" href="/messages/u:${x.m.id}">Message ${esc(x.m.name.split(" ")[0])}</a></div></div>`,
           )
           .join("")
       : `<p class="muted">No students match yet. They'll appear as people join.</p>`
   }</div>
 </div>
+<div class="card" style="margin-top:1rem"><h2 style="font-size:1.2rem;margin-top:0">Questions about this posting?</h2>
+<p class="muted" style="margin:.2rem 0 .7rem">Message ${esc(o.org)} directly. Employers answer here and see only what you put on your profile.</p>
+<div class="row">${org ? `<a class="btn" href="/messages/o:${org.id}">Message the employer</a><a class="btn ghost" href="/orgs/${org.id}">Organization profile</a>` : `<a class="btn ghost" href="/org?name=${encodeURIComponent(o.org)}">Organization profile</a>`}</div></div>
 ${oppCoursesBlock(o.id)}`;
   return html(layout(o.title, body, "/opportunities"));
 }

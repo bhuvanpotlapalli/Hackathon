@@ -263,6 +263,8 @@ export async function courseDetail(env: Env, id: number): Promise<Response> {
     .filter((x) => x.r > 1)
     .sort((a, b) => b.r - a.r)
     .slice(0, 3);
+  // If a mentor on TechWomenAZ shared this course, students can message them straight from here.
+  const author = mentors.results.find((m) => m.name === c.author);
   const guides = mentors.results
     .map((m) => ({ m, r: relevance(c, m.courses) + (m.career === c.career ? 1 : 0) }))
     .filter((x) => x.r > 1 && x.m.name !== c.author)
@@ -273,7 +275,7 @@ export async function courseDetail(env: Env, id: number): Promise<Response> {
 <div class="banner"><div class="row" style="gap:.4rem;position:relative;z-index:1"><span class="chip" style="background:rgba(255,255,255,.15);color:#fff">${esc(c.career)}</span><span class="chip" style="background:rgba(255,255,255,.15);color:#fff">${esc(c.level)}</span><span class="chip" style="background:rgba(255,255,255,.15);color:#fff">${esc(c.cost)}</span></div>
 <h1 style="margin-top:.6rem">${esc(c.title)}</h1>
 <p>${esc(c.author_kind === "Employer" ? "From the employer" : "Shared by mentor")} ${esc(c.author)}${c.provider ? ` · ${esc(c.provider)}` : ""} · ${esc(c.format)}${c.length ? ` · ${esc(c.length)}` : ""}</p>
-<div class="row" style="margin-top:1rem;position:relative;z-index:1"><button class="btn" type="button" id="saveBtn">Save to my courses</button>${/^https?:\/\//.test(c.link) ? `<a class="btn ghost onDark" href="${esc(c.link)}" target="_blank" rel="noopener">Course website</a>` : ""}<a class="btn ghost onDark" href="/courses/personal">Make it personal with ember</a></div></div>
+<div class="row" style="margin-top:1rem;position:relative;z-index:1"><button class="btn" type="button" id="saveBtn">Save to my courses</button>${/^https?:\/\//.test(c.link) ? `<a class="btn ghost onDark" href="${esc(c.link)}" target="_blank" rel="noopener">Course website</a>` : ""}<a class="btn ghost onDark" href="/courses/personal">Make it personal with ember</a>${author ? `<a class="btn ghost onDark" href="/messages/u:${author.id}">Message ${esc(author.name.split(" ")[0])}</a>` : ""}</div></div>
 <div class="two" style="align-items:start">
   <div class="card"><h2 style="font-size:1.2rem">What you'll learn</h2><p>${esc(c.description) || "No description yet."}</p>
   <div class="tagrow">${tagList(c).map((t) => `<a class="tag" href="/courses?tag=${encodeURIComponent(t)}">#${esc(t)}</a>`).join("")}</div>
@@ -288,7 +290,7 @@ export async function courseDetail(env: Env, id: number): Promise<Response> {
   }
   <h2 style="font-size:1.2rem;margin-top:1rem">Mentors who know this</h2>${
     guides.length
-      ? guides.map((x) => `<p style="margin:.4rem 0"><b>${esc(x.m.name)}</b><br><span class="muted">${esc(x.m.headline)}</span></p>`).join("")
+      ? guides.map((x) => `<div class="row" style="justify-content:space-between;align-items:center;border-bottom:1px dashed var(--line);padding:.45rem 0;gap:.5rem"><div><a href="/profile/${x.m.id}"><b>${esc(x.m.name)}</b></a><br><span class="muted">${esc(x.m.headline)}</span></div><a class="btn small ghost" href="/messages/u:${x.m.id}">Message</a></div>`).join("")
       : `<p class="muted">${esc(c.author)} shared it. <a href="/start">Get matched</a> to find a mentor for it.</p>`
   }</div>
 </div>

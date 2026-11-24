@@ -199,5 +199,7 @@ export async function chatFinish(req: Request, env: Env): Promise<Response> {
       .slice(0, 8)
       .join(", "),
   });
-  return Response.json({ id, url: role === "mentor" ? `/mentor/${id}` : `/matches/${id}?new=1` });
+  const next = role === "mentor" ? `/mentor/${id}` : `/matches/${id}?new=1`;
+  // /enter signs the new profile in (demo cookie) and then lands on their page.
+  return Response.json({ id, url: `/enter?key=u:${id}&next=${encodeURIComponent(next)}` });
 }

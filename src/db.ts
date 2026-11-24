@@ -1,6 +1,7 @@
 import { COURSE_SCHEMA, courseSeed } from "./courses";
 import { PERSONAL_SCHEMA, personalSeed } from "./personal";
 import { MEETINGS_SCHEMA, MESSAGES_SCHEMA, ORGS_SCHEMA, orgSeed, PROFILE_MIGRATIONS, meetingSeed, messageSeed } from "./social";
+import { DM_SCHEMA, dmSeed } from "./inbox";
 // D1 schema, demo seed data, and every query Ember uses.
 // All queries use prepare(...).bind(...); user input is never concatenated into SQL.
 
@@ -77,6 +78,7 @@ export const SCHEMA = [
   MESSAGES_SCHEMA,
   MEETINGS_SCHEMA,
   ORGS_SCHEMA,
+  ...DM_SCHEMA,
 ];
 
 // ---------- Demo seed data (fictional people, labelled as demo data in the README) ----------
@@ -273,6 +275,8 @@ export function ensureDb(db: D1Database): Promise<void> {
         const ps = await db.prepare(`SELECT id FROM pairs ORDER BY id LIMIT 3`).all<{ id: number }>();
         if (ps.results.length) await db.batch(meetingSeed(db, ps.results.map((p) => p.id)));
       }
+      const dm = await db.prepare(`SELECT COUNT(*) AS n FROM dm_threads`).first<{ n: number }>();
+      if (!dm || dm.n === 0) await db.batch(dmSeed(db));
     })().catch((e) => {
       ready = null; // retry on the next request
       throw e;
